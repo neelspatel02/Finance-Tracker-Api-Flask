@@ -2,7 +2,7 @@
 .venv/
 venv/
 ENV/
-__pycache__/
+**/__pycache__/
 *.pyc
 .env
 instance/
@@ -12,6 +12,8 @@ instance/
 *.db
 *.db-journal
 *.db-wal
+pft.db
+schema.sql
 
 
 # --- Editor & OS ---
