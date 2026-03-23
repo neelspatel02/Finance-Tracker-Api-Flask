@@ -1,0 +1,25 @@
+# --- Python & Environment ---
+.venv/
+venv/
+ENV/
+__pycache__/
+*.pyc
+.env
+instance/
+
+# --- Database ---
+*.sqlite3
+*.db
+*.db-journal
+*.db-wal
+
+
+# --- Editor & OS ---
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db
+
+# --- Logs & Temp ---
+*.log
+tmp/
