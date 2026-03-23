@@ -9,7 +9,7 @@ from werkzeug.security import generate_password_hash, check_password_hash
 DB_PATH = "pft.db"
 
 app = Flask(__name__)
-app.secret_key = "aryhnarwra4y5aeryna5eryq5eryq5aenr"
+app.secret_key = ""
 
 login_manager = LoginManager()
 login_manager.init_app(app)
