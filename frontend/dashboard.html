@@ -1,0 +1,170 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>PFT — Dashboard</title>
+<link rel="stylesheet" href="style.css">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.0/chart.umd.min.js"></script>
+</head>
+<body>
+<div class="app-layout">
+  <div id="sidebar"></div>
+  <main class="main-content">
+    <div class="page-header">
+      <div class="page-title">Dashboard</div>
+      <div class="page-sub" id="date-sub"></div>
+    </div>
+
+    <!-- STAT CARDS -->
+    <div class="stats-grid" id="stats-grid">
+      <div class="stat-card income"><div class="stat-label">Total Income</div><div class="stat-value" id="stat-income">—</div></div>
+      <div class="stat-card expense"><div class="stat-label">Total Expense</div><div class="stat-value" id="stat-expense">—</div></div>
+      <div class="stat-card net-pos" id="stat-net-card"><div class="stat-label">Net Balance</div><div class="stat-value" id="stat-net">—</div></div>
+      <div class="stat-card" style="border-top: 2px solid var(--purple)"><div class="stat-label">Transactions</div><div class="stat-value" style="color:var(--purple)" id="stat-count">—</div></div>
+    </div>
+
+    <!-- CHARTS ROW -->
+    <div style="display:grid;grid-template-columns:1.6fr 1fr;gap:12px;margin-bottom:1.5rem;">
+      <div class="card">
+        <div class="section-header">
+          <div class="section-title">Monthly Overview</div>
+          <span style="font-size:12px;color:var(--text3);font-family:var(--mono)">last 6 months</span>
+        </div>
+        <div class="chart-container">
+          <canvas id="monthly-chart"></canvas>
+        </div>
+      </div>
+      <div class="card">
+        <div class="section-header">
+          <div class="section-title">Expense by Category</div>
+        </div>
+        <div class="chart-container">
+          <canvas id="cat-chart"></canvas>
+        </div>
+      </div>
+    </div>
+
+    <!-- RECENT TRANSACTIONS -->
+    <div class="card">
+      <div class="section-header">
+        <div class="section-title">Recent Transactions</div>
+        <a href="transactions.html" class="btn btn-sm">View all</a>
+      </div>
+      <div class="table-wrap">
+        <table>
+          <thead>
+            <tr>
+              <th>Date</th><th>Description</th><th>Category</th><th>Type</th><th>Amount</th>
+            </tr>
+          </thead>
+          <tbody id="recent-tbody">
+            <tr><td colspan="5"><div class="loading"><div class="spinner"></div> loading...</div></td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </main>
+</div>
+
+<script src="app.js"></script>
+<script>
+const user = requireAuth();
+document.getElementById('sidebar').innerHTML = renderSidebar('dashboard');
+document.getElementById('date-sub').textContent = new Date().toLocaleDateString('en-IN', { weekday:'long', year:'numeric', month:'long', day:'numeric' });
+
+const CHART_DEFAULTS = {
+  color: '#e8eaf0',
+  grid: 'rgba(255,255,255,0.05)',
+  font: "'DM Mono', monospace"
+};
+
+async function loadDashboard() {
+  try {
+    const [analysis, monthly, catData, txData] = await Promise.all([
+      apiFetch('/api/analysis'),
+      apiFetch('/api/analysis/monthly'),
+      apiFetch('/api/analysis/categories'),
+      apiFetch('/api/transactions')
+    ]);
+
+    // Stats
+    document.getElementById('stat-income').textContent = '₹' + formatRupees(analysis.total_income);
+    document.getElementById('stat-expense').textContent = '₹' + formatRupees(analysis.total_expense);
+    const net = parseFloat(analysis.net);
+    document.getElementById('stat-net').textContent = '₹' + formatRupees(analysis.net);
+    const netCard = document.getElementById('stat-net-card');
+    netCard.className = 'stat-card ' + (net >= 0 ? 'net-pos' : 'net-neg');
+    document.getElementById('stat-count').textContent = txData.transactions.length;
+
+    // Monthly chart
+    const last6 = monthly.slice(0, 6).reverse();
+    const monthLabels = last6.map(m => {
+      const names = ['','Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+      return names[parseInt(m.month)] + ' ' + m.year.slice(2);
+    });
+
+    new Chart(document.getElementById('monthly-chart'), {
+      type: 'bar',
+      data: {
+        labels: monthLabels,
+        datasets: [
+          { label: 'Income', data: last6.map(m => (m.m_income/100).toFixed(2)), backgroundColor: 'rgba(74,222,128,0.7)', borderRadius: 4 },
+          { label: 'Expense', data: last6.map(m => (m.m_expense/100).toFixed(2)), backgroundColor: 'rgba(248,113,113,0.7)', borderRadius: 4 }
+        ]
+      },
+      options: {
+        responsive: true, maintainAspectRatio: false,
+        plugins: { legend: { labels: { color: CHART_DEFAULTS.color, font: { family: CHART_DEFAULTS.font, size: 11 }, boxWidth: 10 } } },
+        scales: {
+          x: { ticks: { color: CHART_DEFAULTS.color, font: { family: CHART_DEFAULTS.font, size: 10 } }, grid: { color: CHART_DEFAULTS.grid } },
+          y: { ticks: { color: CHART_DEFAULTS.color, font: { family: CHART_DEFAULTS.font, size: 10 }, callback: v => '₹' + v }, grid: { color: CHART_DEFAULTS.grid } }
+        }
+      }
+    });
+
+    // Category donut
+    const expCats = catData.filter(c => parseFloat(c.expense) > 0);
+    const catColors = ['#4ade80','#f87171','#60a5fa','#fbbf24','#a78bfa','#34d399','#fb923c'];
+    new Chart(document.getElementById('cat-chart'), {
+      type: 'doughnut',
+      data: {
+        labels: expCats.map(c => c.category),
+        datasets: [{ data: expCats.map(c => (c.expense/100).toFixed(2)), backgroundColor: catColors, borderWidth: 0 }]
+      },
+      options: {
+        responsive: true, maintainAspectRatio: false,
+        plugins: {
+          legend: { position: 'right', labels: { color: CHART_DEFAULTS.color, font: { family: CHART_DEFAULTS.font, size: 11 }, boxWidth: 10, padding: 8 } }
+        },
+        cutout: '65%'
+      }
+    });
+
+    // Recent transactions (last 5)
+    const tbody = document.getElementById('recent-tbody');
+    const txs = Array.isArray(txData) ? txData : txData.transactions || [];
+    const recent = txs.slice(0, 5);
+    // const recent = txData.slice(0, 5);
+    if (!recent.length) {
+      tbody.innerHTML = '<tr><td colspan="5"><div class="empty-state">no transactions yet</div></td></tr>';
+      return;
+    }
+    tbody.innerHTML = recent.map(t => `
+      <tr>
+        <td style="font-family:var(--mono);font-size:12px">${t.date}</td>
+        <td class="primary">${t.description || '—'}</td>
+        <td>${t.category}</td>
+        <td><span class="badge badge-${t.type}">${t.type === 'cr' ? 'Credit' : 'Debit'}</span></td>
+        <td style="font-family:var(--mono);font-weight:500;color:${t.type==='cr'?'var(--accent)':'var(--red)'}">₹${formatRupees(t.amount)}</td>
+      </tr>
+    `).join('');
+  } catch(e) {
+    if (e.status === 401) { clearUser(); window.location.href = 'index.html'; }
+  }
+}
+
+loadDashboard();
+</script>
+</body>
+</html>

@@ -1,0 +1,119 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>PFT — Login</title>
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+<div class="auth-page">
+  <div class="auth-card">
+    <div class="auth-logo">
+      <div class="name">PFT</div>
+      <div class="sub">personal finance tracker</div>
+    </div>
+
+    <div class="auth-tabs">
+      <div class="auth-tab active" onclick="switchTab('login')">Login</div>
+      <div class="auth-tab" onclick="switchTab('register')">Register</div>
+    </div>
+
+    <!-- LOGIN -->
+    <div id="login-form">
+      <div class="form-group">
+        <label class="form-label">Username</label>
+        <input class="form-input" type="text" id="login-username" placeholder="your username" autocomplete="username">
+      </div>
+      <div class="form-group">
+        <label class="form-label">Password</label>
+        <input class="form-input" type="password" id="login-password" placeholder="••••••••" autocomplete="current-password">
+      </div>
+      <button class="btn btn-primary" style="width:100%; margin-top:0.5rem; justify-content:center;" onclick="handleLogin()">
+        Login
+      </button>
+      <div id="login-error" style="color:var(--red);font-size:13px;font-family:var(--mono);margin-top:0.75rem;text-align:center;"></div>
+    </div>
+
+    <!-- REGISTER -->
+    <div id="register-form" class="hidden">
+      <div class="form-group">
+        <label class="form-label">Username</label>
+        <input class="form-input" type="text" id="reg-username" placeholder="choose a username" autocomplete="username">
+      </div>
+      <div class="form-group">
+        <label class="form-label">Email</label>
+        <input class="form-input" type="email" id="reg-email" placeholder="you@example.com" autocomplete="email">
+      </div>
+      <div class="form-group">
+        <label class="form-label">Password</label>
+        <input class="form-input" type="password" id="reg-password" placeholder="••••••••" autocomplete="new-password">
+      </div>
+      <button class="btn btn-primary" style="width:100%; margin-top:0.5rem; justify-content:center;" onclick="handleRegister()">
+        Create account
+      </button>
+      <div id="reg-error" style="color:var(--red);font-size:13px;font-family:var(--mono);margin-top:0.75rem;text-align:center;"></div>
+      <div id="reg-success" style="color:var(--accent);font-size:13px;font-family:var(--mono);margin-top:0.75rem;text-align:center;"></div>
+    </div>
+  </div>
+</div>
+
+<script src="app.js"></script>
+<script>
+  if (getUser()) window.location.href = 'dashboard.html';
+
+  function switchTab(tab) {
+    document.querySelectorAll('.auth-tab').forEach((t, i) => {
+      t.classList.toggle('active', (i === 0 && tab === 'login') || (i === 1 && tab === 'register'));
+    });
+    document.getElementById('login-form').classList.toggle('hidden', tab !== 'login');
+    document.getElementById('register-form').classList.toggle('hidden', tab !== 'register');
+  }
+
+  async function handleLogin() {
+    const username = document.getElementById('login-username').value.trim();
+    const password = document.getElementById('login-password').value;
+    const err = document.getElementById('login-error');
+    err.textContent = '';
+    if (!username || !password) { err.textContent = 'fill in all fields'; return; }
+    try {
+      await apiFetch('/api/auth/login', {
+        method: 'POST',
+        body: JSON.stringify({ username, password })
+      });
+      setUser({ username });
+      window.location.href = 'dashboard.html';
+    } catch(e) {
+      err.textContent = e.message || 'login failed';
+    }
+  }
+
+  async function handleRegister() {
+    const username = document.getElementById('reg-username').value.trim();
+    const email = document.getElementById('reg-email').value.trim();
+    const password = document.getElementById('reg-password').value;
+    const err = document.getElementById('reg-error');
+    const success = document.getElementById('reg-success');
+    err.textContent = ''; success.textContent = '';
+    if (!username || !email || !password) { err.textContent = 'fill in all fields'; return; }
+    try {
+      await apiFetch('/api/auth/register', {
+        method: 'POST',
+        body: JSON.stringify({ username, email, password })
+      });
+      success.textContent = 'account created — you can now login';
+      switchTab('login');
+    } catch(e) {
+      err.textContent = e.message || 'registration failed';
+    }
+  }
+
+  document.addEventListener('keydown', e => {
+    if (e.key === 'Enter') {
+      const active = document.getElementById('login-form').classList.contains('hidden') ? 'register' : 'login';
+      active === 'login' ? handleLogin() : handleRegister();
+    }
+  });
+</script>
+</body>
+</html>

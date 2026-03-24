@@ -1,0 +1,216 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>PFT — Analysis</title>
+<link rel="stylesheet" href="style.css">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.0/chart.umd.min.js"></script>
+</head>
+<body>
+<div class="app-layout">
+  <div id="sidebar"></div>
+  <main class="main-content">
+    <div class="page-header">
+      <div class="page-title">Analysis</div>
+      <div class="page-sub">all time financial breakdown</div>
+    </div>
+
+    <!-- TOTALS -->
+    <div class="stats-grid" style="grid-template-columns:repeat(3,minmax(0,1fr));margin-bottom:1.5rem;">
+      <div class="stat-card income"><div class="stat-label">Total Income</div><div class="stat-value" id="a-income">—</div></div>
+      <div class="stat-card expense"><div class="stat-label">Total Expense</div><div class="stat-value" id="a-expense">—</div></div>
+      <div class="stat-card net-pos" id="a-net-card"><div class="stat-label">Net Balance</div><div class="stat-value" id="a-net">—</div></div>
+    </div>
+
+    <!-- MONTHLY + CATEGORY CHARTS -->
+    <div style="display:grid;grid-template-columns:1.4fr 1fr;gap:12px;margin-bottom:1.5rem;">
+      <div class="card">
+        <div class="section-header">
+          <div class="section-title">Monthly Income vs Expense</div>
+        </div>
+        <div class="chart-container" style="height:260px;">
+          <canvas id="monthly-chart"></canvas>
+        </div>
+      </div>
+      <div class="card">
+        <div class="section-header">
+          <div class="section-title">Net Savings by Month</div>
+        </div>
+        <div class="chart-container" style="height:260px;">
+          <canvas id="net-chart"></canvas>
+        </div>
+      </div>
+    </div>
+
+    <!-- CATEGORY BREAKDOWN -->
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:1.5rem;">
+      <div class="card">
+        <div class="section-header"><div class="section-title">Expense by Category</div></div>
+        <div id="exp-cat-list"></div>
+      </div>
+      <div class="card">
+        <div class="section-header"><div class="section-title">Income by Category</div></div>
+        <div id="inc-cat-list"></div>
+      </div>
+    </div>
+
+    <!-- MONTHLY TABLE -->
+    <div class="card" style="padding:0;">
+      <div style="padding:1.25rem 1.25rem 0;">
+        <div class="section-title">Monthly Summary Table</div>
+      </div>
+      <div class="table-wrap">
+        <table>
+          <thead>
+            <tr><th>Month</th><th>Income</th><th>Expense</th><th>Net</th><th>Savings Rate</th></tr>
+          </thead>
+          <tbody id="monthly-tbody">
+            <tr><td colspan="5"><div class="loading"><div class="spinner"></div> loading...</div></td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+  </main>
+</div>
+
+<script src="app.js"></script>
+<script>
+const user = requireAuth();
+document.getElementById('sidebar').innerHTML = renderSidebar('analysis');
+
+const MONTH_NAMES = ['','Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+const CHART_DEFAULTS = {
+  color: '#8b909e',
+  grid: 'rgba(255,255,255,0.05)',
+  font: "'DM Mono', monospace"
+};
+
+const CAT_COLORS = ['#4ade80','#f87171','#60a5fa','#fbbf24','#a78bfa','#34d399','#fb923c','#e879f9','#22d3ee'];
+
+function categoryBar(label, value, total, color) {
+  const pct = total > 0 ? Math.round((value / total) * 100) : 0;
+  return `
+    <div style="margin-bottom:0.875rem;">
+      <div style="display:flex;justify-content:space-between;margin-bottom:4px;">
+        <span style="font-size:13px;color:var(--text)">${label}</span>
+        <span style="font-size:12px;font-family:var(--mono);color:var(--text2)">₹${formatRupees(value/100)} <span style="color:var(--text3)">(${pct}%)</span></span>
+      </div>
+      <div class="progress-bar">
+        <div class="progress-fill" style="width:${pct}%;background:${color}"></div>
+      </div>
+    </div>`;
+}
+
+async function loadAnalysis() {
+  try {
+    const [totals, monthly, cats] = await Promise.all([
+      apiFetch('/api/analysis'),
+      apiFetch('/api/analysis/monthly'),
+      apiFetch('/api/analysis/categories')
+    ]);
+
+    // Totals
+    document.getElementById('a-income').textContent = '₹' + formatRupees(totals.total_income);
+    document.getElementById('a-expense').textContent = '₹' + formatRupees(totals.total_expense);
+    document.getElementById('a-net').textContent = '₹' + formatRupees(totals.net);
+    const netCard = document.getElementById('a-net-card');
+    netCard.className = 'stat-card ' + (parseFloat(totals.net) >= 0 ? 'net-pos' : 'net-neg');
+
+    // Monthly chart
+    const sorted = [...monthly].reverse();
+    const labels = sorted.map(m => MONTH_NAMES[parseInt(m.month)] + "'" + m.year.slice(2));
+
+    new Chart(document.getElementById('monthly-chart'), {
+      type: 'bar',
+      data: {
+        labels,
+        datasets: [
+          { label: 'Income', data: sorted.map(m => (m.m_income/100).toFixed(2)), backgroundColor: 'rgba(74,222,128,0.7)', borderRadius: 4 },
+          { label: 'Expense', data: sorted.map(m => (m.m_expense/100).toFixed(2)), backgroundColor: 'rgba(248,113,113,0.7)', borderRadius: 4 }
+        ]
+      },
+      options: {
+        responsive: true, maintainAspectRatio: false,
+        plugins: { legend: { labels: { color: CHART_DEFAULTS.color, font: { family: CHART_DEFAULTS.font, size: 11 }, boxWidth: 10 } } },
+        scales: {
+          x: { ticks: { color: CHART_DEFAULTS.color, font: { family: CHART_DEFAULTS.font, size: 10 } }, grid: { color: CHART_DEFAULTS.grid } },
+          y: { ticks: { color: CHART_DEFAULTS.color, font: { family: CHART_DEFAULTS.font, size: 10 }, callback: v => '₹' + v }, grid: { color: CHART_DEFAULTS.grid } }
+        }
+      }
+    });
+
+    // Net savings line chart
+    new Chart(document.getElementById('net-chart'), {
+      type: 'line',
+      data: {
+        labels,
+        datasets: [{
+          label: 'Net',
+          data: sorted.map(m => ((m.m_income - m.m_expense)/100).toFixed(2)),
+          borderColor: '#60a5fa',
+          backgroundColor: 'rgba(96,165,250,0.1)',
+          fill: true,
+          tension: 0.4,
+          pointRadius: 3,
+          pointBackgroundColor: '#60a5fa'
+        }]
+      },
+      options: {
+        responsive: true, maintainAspectRatio: false,
+        plugins: { legend: { display: false } },
+        scales: {
+          x: { ticks: { color: CHART_DEFAULTS.color, font: { family: CHART_DEFAULTS.font, size: 10 } }, grid: { color: CHART_DEFAULTS.grid } },
+          y: { ticks: { color: CHART_DEFAULTS.color, font: { family: CHART_DEFAULTS.font, size: 10 }, callback: v => '₹' + v }, grid: { color: CHART_DEFAULTS.grid } }
+        }
+      }
+    });
+
+    // Category bars
+    const totalExp = cats.reduce((s, c) => s + (c.expense || 0), 0);
+    const totalInc = cats.reduce((s, c) => s + (c.income || 0), 0);
+
+    const expCats = cats.filter(c => c.expense > 0).sort((a, b) => b.expense - a.expense);
+    const incCats = cats.filter(c => c.income > 0).sort((a, b) => b.income - a.income);
+
+    document.getElementById('exp-cat-list').innerHTML = expCats.length
+      ? expCats.map((c, i) => categoryBar(c.category, c.expense, totalExp, CAT_COLORS[i % CAT_COLORS.length])).join('')
+      : '<div class="empty-state">no expense data</div>';
+
+    document.getElementById('inc-cat-list').innerHTML = incCats.length
+      ? incCats.map((c, i) => categoryBar(c.category, c.income, totalInc, CAT_COLORS[i % CAT_COLORS.length])).join('')
+      : '<div class="empty-state">no income data</div>';
+
+    // Monthly table
+    const tbody = document.getElementById('monthly-tbody');
+    tbody.innerHTML = monthly.map(m => {
+      const net = m.m_income - m.m_expense;
+      const savingsRate = m.m_income > 0 ? Math.round((net / m.m_income) * 100) : 0;
+      const netColor = net >= 0 ? 'var(--accent)' : 'var(--red)';
+      return `
+        <tr>
+          <td class="primary" style="font-family:var(--mono)">${MONTH_NAMES[parseInt(m.month)]} ${m.year}</td>
+          <td style="font-family:var(--mono);color:var(--accent)">₹${formatRupees(m.m_income/100)}</td>
+          <td style="font-family:var(--mono);color:var(--red)">₹${formatRupees(m.m_expense/100)}</td>
+          <td style="font-family:var(--mono);color:${netColor};font-weight:500">₹${formatRupees(net/100)}</td>
+          <td>
+            <div style="display:flex;align-items:center;gap:8px;">
+              <div class="progress-bar" style="width:80px;margin:0;">
+                <div class="progress-fill" style="width:${Math.max(0,savingsRate)}%;background:${netColor}"></div>
+              </div>
+              <span style="font-family:var(--mono);font-size:12px;color:${netColor}">${savingsRate}%</span>
+            </div>
+          </td>
+        </tr>`;
+    }).join('');
+
+  } catch(e) {
+    if (e.status === 401) { clearUser(); window.location.href = 'index.html'; }
+  }
+}
+
+loadAnalysis();
+</script>
+</body>
+</html>

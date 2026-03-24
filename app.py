@@ -1,15 +1,21 @@
+import os
 from database import DataBase
-from flask import Flask, jsonify, request
+from dotenv import load_dotenv
+from flask import Flask, jsonify, request, send_from_directory
+from flask_cors import CORS
 from flask_login import LoginManager, UserMixin, login_user, logout_user, login_required, current_user
 from services import category_service, transaction_service, analysis_service
 from werkzeug.security import generate_password_hash, check_password_hash
 
-
-
-DB_PATH = "pft.db"
+load_dotenv()
 
 app = Flask(__name__)
-app.secret_key = ""
+
+
+app.secret_key = os.getenv("SECRET_KEY")
+DB_PATH = os.getenv("DB_PATH", "pft.db")
+
+CORS(app, supports_credentials=True)
 
 login_manager = LoginManager()
 login_manager.init_app(app)
@@ -21,12 +27,24 @@ db.connect()
 db.create_tables()
 
 
+@app.route("/frontend/<path:filename>")
+def frontend(filename):
+    return send_from_directory("frontend", filename)
+
+@app.route("/")
+def root():
+    return send_from_directory("frontend", "index.html")
+
 # ---- TRANSACTIONS ----
 
 @app.route("/api/transactions", methods=["GET"])
 @login_required
 def get_transactions():
-    return jsonify(transaction_service.get_all(db, current_user.id)), 200
+    page = request.args.get("page", 1, type=int)
+    limit = request.args.get("limit", 15, type=int)
+    sort_by = request.args.get("sort_by", "date")
+    sort_order = request.args.get("sort_order", "desc")
+    return jsonify(transaction_service.get_paginated(db, page, limit, sort_by, sort_order, current_user.id)), 200
 
 
 @app.route("/api/transactions", methods=["POST"])

@@ -4,8 +4,11 @@ venv/
 ENV/
 **/__pycache__/
 *.pyc
+*.pyo
 .env
 instance/
+*.egg-info/
+rough.py
 
 # --- Database ---
 *.sqlite3

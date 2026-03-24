@@ -1,0 +1,121 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>PFT — Categories</title>
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+<div class="app-layout">
+  <div id="sidebar"></div>
+  <main class="main-content">
+    <div class="page-header">
+      <div class="page-title">Categories</div>
+      <div class="page-sub">manage your transaction categories</div>
+    </div>
+
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:1.5rem;align-items:start;">
+
+      <!-- CATEGORIES LIST -->
+      <div class="card" style="padding:0;">
+        <div style="padding:1.25rem 1.25rem 0;">
+          <div class="section-title">All Categories</div>
+        </div>
+        <div class="table-wrap">
+          <table>
+            <thead>
+              <tr><th>#</th><th>Category</th><th></th></tr>
+            </thead>
+            <tbody id="cat-tbody">
+              <tr><td colspan="3"><div class="loading"><div class="spinner"></div> loading...</div></td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      <!-- ADD CATEGORY -->
+      <div class="card">
+        <div class="section-title" style="margin-bottom:1.25rem;">Add New Category</div>
+        <div class="form-group">
+          <label class="form-label">Category Name</label>
+          <input class="form-input" type="text" id="cat-input" placeholder="e.g. Groceries" maxlength="50" autocomplete="off">
+        </div>
+        <button class="btn btn-primary" style="width:100%;justify-content:center;" onclick="addCategory()">Add Category</button>
+        <div id="cat-msg" style="font-size:12px;font-family:var(--mono);margin-top:0.75rem;text-align:center;"></div>
+      </div>
+
+    </div>
+  </main>
+</div>
+
+<div id="toast" class="toast"></div>
+<script src="app.js"></script>
+<script>
+const user = requireAuth();
+document.getElementById('sidebar').innerHTML = renderSidebar('categories');
+
+async function loadCategories() {
+  const tbody = document.getElementById('cat-tbody');
+  try {
+    const cats = await apiFetch('/api/categories');
+    if (!cats.length) {
+      tbody.innerHTML = '<tr><td colspan="3"><div class="empty-state">no categories yet</div></td></tr>';
+      return;
+    }
+    tbody.innerHTML = cats.map((c, i) => `
+      <tr>
+        <td style="font-family:var(--mono);font-size:12px;color:var(--text3)">${i+1}</td>
+        <td class="primary">${c.category}</td>
+        <td>
+          <button class="btn btn-danger" onclick="deleteCategory(${c.category_id}, '${c.category}')">Delete</button>
+        </td>
+      </tr>
+    `).join('');
+  } catch(e) {
+    if (e.status === 401) { clearUser(); window.location.href = 'index.html'; }
+  }
+}
+
+async function addCategory() {
+  const input = document.getElementById('cat-input');
+  const msg = document.getElementById('cat-msg');
+  const name = input.value.trim();
+  msg.textContent = '';
+  msg.style.color = 'var(--text3)';
+  if (!name) { msg.textContent = 'enter a category name'; msg.style.color = 'var(--red)'; return; }
+  try {
+    const res = await apiFetch('/api/categories', {
+      method: 'POST',
+      body: JSON.stringify({ category: name })
+    });
+    input.value = '';
+    msg.textContent = res.message || 'category added';
+    msg.style.color = 'var(--accent)';
+    toast('category added');
+    loadCategories();
+  } catch(e) {
+    msg.textContent = e.message || 'failed to add';
+    msg.style.color = 'var(--red)';
+  }
+}
+
+async function deleteCategory(id, name) {
+  if (!confirm(`delete "${name}"?\n\nThis will fail if transactions use this category.`)) return;
+  try {
+    await apiFetch(`/api/categories/${id}`, { method: 'DELETE' });
+    toast('category deleted');
+    loadCategories();
+  } catch(e) {
+    toast(e.message || 'cannot delete — category is in use', 'error');
+  }
+}
+
+document.getElementById('cat-input').addEventListener('keydown', e => {
+  if (e.key === 'Enter') addCategory();
+});
+
+loadCategories();
+</script>
+</body>
+</html>
