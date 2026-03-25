@@ -138,10 +138,16 @@ class DataBase:
         return row["row_count"]
     
 
-    def get_transactions(self, user_id, sort_by="t.t_date", sort_order="DESC", limit=30, offset=0):
+    def get_transactions(self, user_id, filters,
+                            sort_by="t.t_date",
+                            sort_order="DESC",
+                            limit=30,
+                            offset=0
+                            ):
         " Returns the table as a list of Row_obj. [row1, col2] "
 
         order = sort_order.upper()
+
         query = f""" SELECT t.t_id,
                         DATE(t.t_date) as date,
                         TIME(t.t_date) as time,
@@ -152,15 +158,30 @@ class DataBase:
                         t.created_at
                     FROM transactions t JOIN categories c
                     ON t.category_id = c.category_id
-                    WHERE user_id = ?
-                    ORDER BY {sort_by} {order}, t.created_at DESC
+                    WHERE user_id = ?"""
+        
+        query_end = f""" ORDER BY {sort_by} {order}, t.created_at DESC
                     LIMIT {limit} OFFSET {offset}; 
                     """
+        
+        params = [user_id]
+
+        if filters.get("start_date"):
+            query += " AND t.t_date >= ?"
+            params.append(filters["start_date"])
+        if filters.get("end_date"):
+            query += " AND t.t_date <= ?"
+            params.append(filters["end_date"])
+        if filters.get("t_type"):
+            query += " AND t.t_type = ?"
+            params.append(filters["t_type"])
+
+        query += query_end  # final query
 
         self.connect()
         cursor = self.connection.cursor()
 
-        cursor.execute(query, (user_id,))
+        cursor.execute(query, tuple(params))
         transactions = cursor.fetchall()
         return transactions
 
@@ -197,47 +218,124 @@ class DataBase:
 
 #  Analytics part
 
-    #  total report
-    def _get_total(self, t_type, user_id):
+    def _query_maker(self, query, params, start_date=None, end_date=None):
+        if start_date:
+            query += " AND t_date >= ?"
+            params.append(start_date)
 
+        if end_date:
+            query += " AND t_date <= ?"
+            params.append(end_date)
+
+        return query, params    #str, list
+
+
+    #  total report
+    def _get_total(self, t_type, user_id, start_date=None, end_date=None):
         self.connect()
         cursor = self.connection.cursor()
-        cursor.execute("SELECT SUM(amount_in_paise) AS total FROM transactions WHERE user_id = ? AND t_type = ?", (user_id, t_type,))
+
+        params = [user_id, t_type]
+
+        query = "SELECT SUM(amount_in_paise) AS total FROM transactions WHERE user_id = ? AND t_type = ?"
+
+        query, params = self._query_maker(query, params, start_date, end_date)
+        cursor.execute(query, tuple(params))
         result = cursor.fetchone()["total"]
         return result or 0
 
-    def get_total_income(self, user_id):
-        return self._get_total("cr", user_id=user_id)
+    def get_total_income(self, user_id, start_date=None, end_date=None):
+        return self._get_total("cr", user_id, start_date, end_date)
 
-    def get_total_expense(self, user_id):
-        return self._get_total("db", user_id=user_id)
+    def get_total_expense(self, user_id, start_date=None, end_date=None):
+        return self._get_total("db", user_id, start_date, end_date)
     
-    # monthly report
-    def get_monthly_report(self, user_id):
 
+# YEARLY REPORT
+    def get_yearly_report(self, user_id, start_date=None, end_date=None):
         self.connect()
         cursor = self.connection.cursor()
 
+        params = [user_id]
         query = """
-                        SELECT strftime('%Y', t_date) AS year, 
-                            strftime('%m', t_date) AS month,
-                            SUM(CASE WHEN t_type = "cr" THEN amount_in_paise ELSE 0 END) as m_income,
-                            SUM(CASE WHEN t_type = "db" THEN amount_in_paise ELSE 0 END) as m_expense
-                        FROM transactions
-                        WHERE user_id = ?
-                        GROUP BY year, month
-                        ORDER BY year DESC, month DESC;
-                    """
+                SELECT strftime('%Y', t_date) AS year,
+                    SUM(CASE WHEN t_type = "cr" THEN amount_in_paise ELSE 0 END) AS income,
+                    SUM(CASE WHEN t_type = "db" THEN amount_in_paise ELSE 0 END) AS expense
+                FROM transactions
+                WHERE user_id = ?"""
         
-        cursor.execute(query, (user_id,))
+        query_end = """ GROUP BY year
+                ORDER BY year DESC;
+                """
+        
+        new_query, params = self._query_maker(query, params, start_date, end_date)
 
+        query = new_query + query_end
+
+        cursor.execute(query, tuple(params))
         result = cursor.fetchall()
         return result or 0
 
-    def get_report_by_categories(self, user_id):
 
+# MONTHLY REPORT
+    def get_monthly_report(self, user_id, start_date=None, end_date=None):
         self.connect()
         cursor = self.connection.cursor()
+
+        params = [user_id]
+        query = """
+                        SELECT strftime('%Y', t_date) AS year, 
+                            strftime('%m', t_date) AS month,
+                            SUM(CASE WHEN t_type = "cr" THEN amount_in_paise ELSE 0 END) as income,
+                            SUM(CASE WHEN t_type = "db" THEN amount_in_paise ELSE 0 END) as expense
+                        FROM transactions
+                        WHERE user_id = ?"""
+        
+        query_end = """ GROUP BY year, month
+                        ORDER BY year DESC, month DESC;
+                    """
+        
+        new_query, params = self._query_maker(query, params, start_date, end_date)
+
+        query = new_query + query_end
+        cursor.execute(query, tuple(params))
+        result = cursor.fetchall()
+        return result or 0
+
+# WEEKLY REPORT
+    def get_weekly_report(self, user_id, start_date=None, end_date=None):
+        self.connect()
+        cursor = self.connection.cursor()
+
+        params = [user_id]
+
+        query = """
+                SELECT strftime("%Y", t_date) as year,
+                    strftime("%m", t_date) as month,
+                    strftime("%W", t_date) as week,
+                    SUM(CASE WHEN t_type = "cr" THEN amount_in_paise ELSE 0 END) as income,
+                    SUM(CASE WHEN t_type = "db" THEN amount_in_paise ELSE 0 END) as expense
+                FROM transactions
+                WHERE user_id = ?"""
+        
+        query_end = """ GROUP BY year, month, week
+                ORDER BY year DESC, month DESC, week DESC;
+                """
+        
+        new_query, params = self._query_maker(query, params, start_date, end_date)
+
+        query = new_query + query_end
+        cursor.execute(query, tuple(params))
+        result = cursor.fetchall()
+        return result or 0
+    
+
+# CATEGORIAL REPORT
+    def get_report_by_categories(self, user_id, start_date=None, end_date=None):
+        self.connect()
+        cursor = self.connection.cursor()
+
+        params = [user_id]
 
         query = """
                         SELECT c.category AS category,
@@ -245,15 +343,22 @@ class DataBase:
                         SUM(CASE WHEN t_type = 'db' THEN t.amount_in_paise ELSE 0 END) AS expense
                         FROM transactions t JOIN categories c
                         ON t.category_id = c.category_id
-                        WHERE t.user_id = ?
-                        GROUP BY t.category_id
+                        WHERE t.user_id = ?"""
+        
+        query_end = """ GROUP BY t.category_id
                         HAVING income > 0 OR expense > 0;
                     """
         
-        cursor.execute(query, (user_id,))
+        if start_date:
+            query += " AND t.t_date >= ?"
+            params.append(start_date)
 
+        if end_date:
+            query += " AND t.t_date <= ?"
+            params.append(end_date)
+
+        query += query_end
+        
+        cursor.execute(query, tuple(params))
         result = cursor.fetchall()
         return result or 0
-    
-
-#  

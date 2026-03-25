@@ -21,13 +21,14 @@ def format_transaction(row):
     }
 
 
-def get_paginated(db, page, limit, sort_by, sort_order, user_id):
+def get_paginated(db, page, limit, sort_by, sort_order, user_id, filters):
     offset = (page - 1) * limit
     sort_col = SORT_OPTIONS.get(sort_by, "t.t_date")
     total = db.get_transactions_count(user_id)
     total_pages = math.ceil(total / limit)
+    filters = filters or {}
 
-    rows = db.get_transactions(user_id, sort_col, sort_order, limit, offset)
+    rows = db.get_transactions(user_id, filters, sort_col, sort_order, limit, offset)
 
     return {"transactions": [format_transaction(row) for row in rows],
             "page": page,

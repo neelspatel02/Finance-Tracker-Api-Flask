@@ -21,7 +21,7 @@
       <div class="stat-card income"><div class="stat-label">Total Income</div><div class="stat-value" id="stat-income">—</div></div>
       <div class="stat-card expense"><div class="stat-label">Total Expense</div><div class="stat-value" id="stat-expense">—</div></div>
       <div class="stat-card net-pos" id="stat-net-card"><div class="stat-label">Net Balance</div><div class="stat-value" id="stat-net">—</div></div>
-      <div class="stat-card" style="border-top: 2px solid var(--purple)"><div class="stat-label">Transactions</div><div class="stat-value" style="color:var(--purple)" id="stat-count">—</div></div>
+      <!-- <div class="stat-card" style="border-top: 2px solid var(--purple)"><div class="stat-label">Transactions</div><div class="stat-value" style="color:var(--purple)" id="stat-count">—</div></div> -->
     </div>
 
     <!-- CHARTS ROW -->
@@ -95,7 +95,7 @@ async function loadDashboard() {
     document.getElementById('stat-net').textContent = '₹' + formatRupees(analysis.net);
     const netCard = document.getElementById('stat-net-card');
     netCard.className = 'stat-card ' + (net >= 0 ? 'net-pos' : 'net-neg');
-    document.getElementById('stat-count').textContent = txData.transactions.length;
+    // document.getElementById('stat-count').textContent = txData.transactions.length;
 
     // Monthly chart
     const last6 = monthly.slice(0, 6).reverse();

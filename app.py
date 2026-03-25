@@ -22,6 +22,7 @@ login_manager.init_app(app)
 
 
 # ---- DATABASE ----
+
 db = DataBase(DB_PATH)
 db.connect()
 db.create_tables()
@@ -35,6 +36,7 @@ def frontend(filename):
 def root():
     return send_from_directory("frontend", "index.html")
 
+
 # ---- TRANSACTIONS ----
 
 @app.route("/api/transactions", methods=["GET"])
@@ -44,7 +46,14 @@ def get_transactions():
     limit = request.args.get("limit", 15, type=int)
     sort_by = request.args.get("sort_by", "date")
     sort_order = request.args.get("sort_order", "desc")
-    return jsonify(transaction_service.get_paginated(db, page, limit, sort_by, sort_order, current_user.id)), 200
+
+    filters = {
+        "start_date": request.args.get("start_date", None),
+        "end_date": request.args.get("end_date", None),
+        "t_type": request.args.get("t_type", None)
+    }
+    print(filters)
+    return jsonify(transaction_service.get_paginated(db, page, limit, sort_by, sort_order, current_user.id, filters)), 200
 
 
 @app.route("/api/transactions", methods=["POST"])
@@ -88,19 +97,42 @@ def delete_categories(id):
 @app.route("/api/analysis")
 @login_required
 def get_analysis():
-    return jsonify(analysis_service.get_total(db, current_user.id)), 200
+    start_date = request.args.get("start_date", None)
+    end_date = request.args.get("end_date", None)
+    return jsonify(analysis_service.get_total(db, current_user.id, start_date, end_date)), 200
+
+
+@app.route("/api/analysis/yearly", methods=["GET"])
+@login_required
+def get_yearly():
+    start_date = request.args.get("start_date", None)
+    end_date = request.args.get("end_date", None)
+    return jsonify(analysis_service.get_yearly(db, current_user.id, start_date, end_date)), 200
 
 
 @app.route("/api/analysis/monthly", methods=["GET"])
 @login_required
 def get_monthly():
-    return jsonify(analysis_service.get_monthly(db, current_user.id)), 200
+    start_date = request.args.get("start_date", None)
+    end_date = request.args.get("end_date", None)
+    return jsonify(analysis_service.get_monthly(db, current_user.id, start_date, end_date)), 200
+
+
+@app.route("/api/analysis/weekly", methods=["GET"])
+@login_required
+def get_weekly():
+    start_date = request.args.get("start_date", None)
+    end_date = request.args.get("end_date", None)
+    return jsonify(analysis_service.get_weekly(db, current_user.id, start_date, end_date)), 200
 
 
 @app.route("/api/analysis/categories", methods=["GET"])
 @login_required
 def get_category_report():
-    return jsonify(analysis_service.get_by_categories(db, current_user.id)), 200
+    start_date = request.args.get("start_date", None)
+    end_date = request.args.get("end_date", None)
+    return jsonify(analysis_service.get_by_categories(db, current_user.id, start_date, end_date)), 200
+
 
 #  ---- USER LOGIN -----
 
@@ -153,11 +185,17 @@ def login():
     
     return jsonify({"message": "Invalid credentials"}), 401
 
-
+# LOGOUT
 @app.route("/api/auth/logout", methods=["POST"])
 @login_required
 def logout():
     logout_user()
     return jsonify({"message": "Logged out"}), 200
+
+
+@app.route("/api/auth/me", methods=["GET"])
+@login_required
+def get_user():
+    return jsonify({"username": current_user.username, "user_id": current_user.id})
 
 app.run(debug=True)

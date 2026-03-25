@@ -30,7 +30,7 @@
         <option value="desc">Descending</option>
         <option value="asc">Ascending</option>
       </select>
-      <select class="form-select" id="page-limit" onchange="() => { currentPage=1; loadTransactions(); }">
+      <select class="form-select" id="page-limit" onchange="currentPage=1; loadTransactions();">
         <option value="15">15 / page</option>
         <option value="30">30 / page</option>
         <option value="50">50 / page</option>
