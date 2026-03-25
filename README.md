@@ -32,7 +32,9 @@ This is the api verson of the Finance-Tracker i made with flask. [Here](https://
 
 ### Analysis
 - GET /api/analysis
+- GET /api/analysis/yearly
 - GET /api/analysis/monthly
+- GET /api/analysis/weekly
 - GET /api/analysis/categories
 
 *will be adding JWT and other features such as AI integration in future* 
