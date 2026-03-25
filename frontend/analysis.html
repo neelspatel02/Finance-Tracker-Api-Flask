@@ -11,19 +11,46 @@
 <div class="app-layout">
   <div id="sidebar"></div>
   <main class="main-content">
-    <div class="page-header">
-      <div class="page-title">Analysis</div>
-      <div class="page-sub">all time financial breakdown</div>
+    <div class="page-header" style="display:flex;align-items:flex-start;justify-content:space-between;">
+      <div>
+        <div class="page-title">Analysis</div>
+        <div class="page-sub" id="range-sub">all time</div>
+      </div>
+      <!-- DATE RANGE CONTROLS -->
+      <div style="display:flex;gap:0.5rem;align-items:center;flex-wrap:wrap;justify-content:flex-end;">
+        <div class="filters-bar" style="margin:0;">
+          <button class="btn btn-sm range-btn active" onclick="setRange('all')">All Time</button>
+          <button class="btn btn-sm range-btn" onclick="setRange('year')">This Year</button>
+          <button class="btn btn-sm range-btn" onclick="setRange('month')">This Month</button>
+          <button class="btn btn-sm range-btn" onclick="setRange('custom')">Custom</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- CUSTOM DATE RANGE (hidden by default) -->
+    <div id="custom-range" style="display:none;gap:0.75rem;align-items:center;margin-bottom:1.25rem;flex-wrap:wrap;" class="filters-bar">
+      <div style="display:flex;align-items:center;gap:0.5rem;">
+        <label style="font-size:12px;color:var(--text3);font-family:var(--mono);">FROM</label>
+        <input class="form-input" type="date" id="custom-start" style="width:160px;padding:0.4rem 0.75rem;font-size:13px;">
+      </div>
+      <div style="display:flex;align-items:center;gap:0.5rem;">
+        <label style="font-size:12px;color:var(--text3);font-family:var(--mono);">TO</label>
+        <input class="form-input" type="date" id="custom-end" style="width:160px;padding:0.4rem 0.75rem;font-size:13px;">
+      </div>
+      <button class="btn btn-primary btn-sm" onclick="applyCustomRange()">Apply</button>
     </div>
 
     <!-- TOTALS -->
     <div class="stats-grid" style="grid-template-columns:repeat(3,minmax(0,1fr));margin-bottom:1.5rem;">
       <div class="stat-card income"><div class="stat-label">Total Income</div><div class="stat-value" id="a-income">—</div></div>
       <div class="stat-card expense"><div class="stat-label">Total Expense</div><div class="stat-value" id="a-expense">—</div></div>
-      <div class="stat-card net-pos" id="a-net-card"><div class="stat-label">Net Balance</div><div class="stat-value" id="a-net">—</div></div>
+      <div class="stat-card net-pos" id="a-net-card">
+        <div class="stat-label">Net Balance</div>
+        <div class="stat-value" id="a-net" style="display:flex;align-items:center;gap:6px;">—</div>
+      </div>
     </div>
 
-    <!-- MONTHLY + CATEGORY CHARTS -->
+    <!-- MONTHLY + NET CHARTS -->
     <div style="display:grid;grid-template-columns:1.4fr 1fr;gap:12px;margin-bottom:1.5rem;">
       <div class="card">
         <div class="section-header">
@@ -55,14 +82,19 @@
       </div>
     </div>
 
-    <!-- MONTHLY TABLE -->
+    <!-- SUMMARY TABLE with period toggle -->
     <div class="card" style="padding:0;">
-      <div style="padding:1.25rem 1.25rem 0;">
-        <div class="section-title">Monthly Summary Table</div>
+      <div style="padding:1.25rem 1.25rem 0;display:flex;align-items:center;justify-content:space-between;">
+        <div class="section-title">Summary Table</div>
+        <div style="display:flex;gap:0.4rem;">
+          <button class="btn btn-sm period-btn active" onclick="setPeriod('monthly')">Monthly</button>
+          <button class="btn btn-sm period-btn" onclick="setPeriod('weekly')">Weekly</button>
+          <button class="btn btn-sm period-btn" onclick="setPeriod('yearly')">Yearly</button>
+        </div>
       </div>
       <div class="table-wrap">
         <table>
-          <thead>
+          <thead id="summary-thead">
             <tr><th>Month</th><th>Income</th><th>Expense</th><th>Net</th><th>Savings Rate</th></tr>
           </thead>
           <tbody id="monthly-tbody">
@@ -86,16 +118,66 @@ const CHART_DEFAULTS = {
   grid: 'rgba(255,255,255,0.05)',
   font: "'DM Mono', monospace"
 };
-
 const CAT_COLORS = ['#4ade80','#f87171','#60a5fa','#fbbf24','#a78bfa','#34d399','#fb923c','#e879f9','#22d3ee'];
 
+let currentRange = { start_date: null, end_date: null };
+let currentPeriod = 'monthly';
+let monthlyChart = null;
+let netChart = null;
+
+// ---- RANGE HELPERS ----
+function setRange(type) {
+  document.querySelectorAll('.range-btn').forEach(b => b.classList.remove('active'));
+  event.target.classList.add('active');
+  document.getElementById('custom-range').style.display = 'none';
+
+  const now = new Date();
+  const pad = n => String(n).padStart(2, '0');
+
+  if (type === 'all') {
+    currentRange = { start_date: null, end_date: null };
+    document.getElementById('range-sub').textContent = 'all time';
+  } else if (type === 'year') {
+    currentRange = { start_date: `${now.getFullYear()}-01-01`, end_date: `${now.getFullYear()}-12-31` };
+    document.getElementById('range-sub').textContent = `Jan — Dec ${now.getFullYear()}`;
+  } else if (type === 'month') {
+    const first = `${now.getFullYear()}-${pad(now.getMonth()+1)}-01`;
+    const last = new Date(now.getFullYear(), now.getMonth()+1, 0);
+    const lastStr = `${last.getFullYear()}-${pad(last.getMonth()+1)}-${pad(last.getDate())}`;
+    currentRange = { start_date: first, end_date: lastStr };
+    document.getElementById('range-sub').textContent = `${MONTH_NAMES[now.getMonth()+1]} ${now.getFullYear()}`;
+  } else if (type === 'custom') {
+    document.getElementById('custom-range').style.display = 'flex';
+    return;
+  }
+  loadAnalysis();
+}
+
+function applyCustomRange() {
+  const start = document.getElementById('custom-start').value;
+  const end = document.getElementById('custom-end').value;
+  if (!start || !end) return;
+  currentRange = { start_date: start, end_date: end };
+  document.getElementById('range-sub').textContent = `${start} → ${end}`;
+  loadAnalysis();
+}
+
+// ---- PERIOD TOGGLE ----
+function setPeriod(period) {
+  currentPeriod = period;
+  document.querySelectorAll('.period-btn').forEach(b => b.classList.remove('active'));
+  event.target.classList.add('active');
+  loadSummaryTable();
+}
+
+// ---- CATEGORY BARS ----
 function categoryBar(label, value, total, color) {
-  const pct = total > 0 ? Math.round((value / total) * 100) : 0;
+  const pct = total > 0 ? Math.round((parseFloat(value) / parseFloat(total)) * 100) : 0;
   return `
     <div style="margin-bottom:0.875rem;">
       <div style="display:flex;justify-content:space-between;margin-bottom:4px;">
         <span style="font-size:13px;color:var(--text)">${label}</span>
-        <span style="font-size:12px;font-family:var(--mono);color:var(--text2)">₹${formatRupees(value/100)} <span style="color:var(--text3)">(${pct}%)</span></span>
+        <span style="font-size:12px;font-family:var(--mono);color:var(--text2)">₹${formatRupees(value)} <span style="color:var(--text3)">(${pct}%)</span></span>
       </div>
       <div class="progress-bar">
         <div class="progress-fill" style="width:${pct}%;background:${color}"></div>
@@ -103,32 +185,122 @@ function categoryBar(label, value, total, color) {
     </div>`;
 }
 
+// ---- BUILD QUERY STRING ----
+function rangeParams() {
+  const p = new URLSearchParams();
+  if (currentRange.start_date) p.set('start_date', currentRange.start_date);
+  if (currentRange.end_date) p.set('end_date', currentRange.end_date);
+  return p.toString() ? '?' + p.toString() : '';
+}
+
+// ---- SUMMARY TABLE ----
+async function loadSummaryTable() {
+  const tbody = document.getElementById('monthly-tbody');
+  const thead = document.getElementById('summary-thead');
+  tbody.innerHTML = '<tr><td colspan="5"><div class="loading"><div class="spinner"></div></div></td></tr>';
+
+  try {
+    const data = await apiFetch(`/api/analysis/${currentPeriod}${rangeParams()}`);
+
+    if (currentPeriod === 'monthly') {
+      thead.innerHTML = '<tr><th>Month</th><th>Income</th><th>Expense</th><th>Net</th><th>Savings Rate</th></tr>';
+      tbody.innerHTML = data.map(m => {
+        const net = parseFloat(m.net);
+        const income = parseFloat(m.income);
+        const savingsRate = income > 0 ? Math.round((net / income) * 100) : 0;
+        const netColor = net >= 0 ? 'var(--accent)' : 'var(--red)';
+        return `<tr>
+          <td class="primary" style="font-family:var(--mono)">${MONTH_NAMES[parseInt(m.month)]} ${m.year}</td>
+          <td style="font-family:var(--mono);color:var(--accent)">₹${formatRupees(m.income)}</td>
+          <td style="font-family:var(--mono);color:var(--red)">₹${formatRupees(m.expense)}</td>
+          <td style="font-family:var(--mono);color:${netColor};font-weight:500">₹${formatRupees(m.net)}</td>
+          <td>
+            <div style="display:flex;align-items:center;gap:8px;">
+              <div class="progress-bar" style="width:80px;margin:0;">
+                <div class="progress-fill" style="width:${Math.max(0,savingsRate)}%;background:${netColor}"></div>
+              </div>
+              <span style="font-family:var(--mono);font-size:12px;color:${netColor}">${savingsRate}%</span>
+            </div>
+          </td>
+        </tr>`;
+      }).join('') || '<tr><td colspan="5"><div class="empty-state">no data</div></td></tr>';
+
+    } else if (currentPeriod === 'weekly') {
+      thead.innerHTML = '<tr><th>Year</th><th>Week</th><th>Income</th><th>Expense</th><th>Net</th></tr>';
+      tbody.innerHTML = data.map(w => {
+        const net = parseFloat(w.net);
+        const netColor = net >= 0 ? 'var(--accent)' : 'var(--red)';
+        return `<tr>
+          <td style="font-family:var(--mono);color:var(--text3)">${w.year}</td>
+          <td class="primary" style="font-family:var(--mono)">Week ${w.week}</td>
+          <td style="font-family:var(--mono);color:var(--accent)">₹${formatRupees(w.income)}</td>
+          <td style="font-family:var(--mono);color:var(--red)">₹${formatRupees(w.expense)}</td>
+          <td style="font-family:var(--mono);color:${netColor};font-weight:500">₹${formatRupees(w.net)}</td>
+        </tr>`;
+      }).join('') || '<tr><td colspan="5"><div class="empty-state">no data</div></td></tr>';
+
+    } else if (currentPeriod === 'yearly') {
+      thead.innerHTML = '<tr><th>Year</th><th>Income</th><th>Expense</th><th>Net</th><th>Savings Rate</th></tr>';
+      tbody.innerHTML = data.map(y => {
+        const net = parseFloat(y.net);
+        const income = parseFloat(y.income);
+        const savingsRate = income > 0 ? Math.round((net / income) * 100) : 0;
+        const netColor = net >= 0 ? 'var(--accent)' : 'var(--red)';
+        return `<tr>
+          <td class="primary" style="font-family:var(--mono)">${y.year}</td>
+          <td style="font-family:var(--mono);color:var(--accent)">₹${formatRupees(y.income)}</td>
+          <td style="font-family:var(--mono);color:var(--red)">₹${formatRupees(y.expense)}</td>
+          <td style="font-family:var(--mono);color:${netColor};font-weight:500">₹${formatRupees(y.net)}</td>
+          <td>
+            <div style="display:flex;align-items:center;gap:8px;">
+              <div class="progress-bar" style="width:80px;margin:0;">
+                <div class="progress-fill" style="width:${Math.max(0,savingsRate)}%;background:${netColor}"></div>
+              </div>
+              <span style="font-family:var(--mono);font-size:12px;color:${netColor}">${savingsRate}%</span>
+            </div>
+          </td>
+        </tr>`;
+      }).join('') || '<tr><td colspan="5"><div class="empty-state">no data</div></td></tr>';
+    }
+  } catch(e) {
+    if (e.status === 401) { clearUser(); window.location.href = 'index.html'; }
+  }
+}
+
+// ---- MAIN LOAD ----
 async function loadAnalysis() {
+  const qs = rangeParams();
   try {
     const [totals, monthly, cats] = await Promise.all([
-      apiFetch('/api/analysis'),
-      apiFetch('/api/analysis/monthly'),
-      apiFetch('/api/analysis/categories')
+      apiFetch('/api/analysis' + qs),
+      apiFetch('/api/analysis/monthly' + qs),
+      apiFetch('/api/analysis/categories' + qs)
     ]);
 
     // Totals
     document.getElementById('a-income').textContent = '₹' + formatRupees(totals.total_income);
     document.getElementById('a-expense').textContent = '₹' + formatRupees(totals.total_expense);
-    document.getElementById('a-net').textContent = '₹' + formatRupees(totals.net);
-    const netCard = document.getElementById('a-net-card');
-    netCard.className = 'stat-card ' + (parseFloat(totals.net) >= 0 ? 'net-pos' : 'net-neg');
+    const net = parseFloat(totals.net);
+    const arrow = net >= 0 ? '↑' : '↓';
+    const netColor = net >= 0 ? 'var(--accent)' : 'var(--red)';
+    document.getElementById('a-net').innerHTML = `<span style="color:${netColor}">₹${formatRupees(totals.net)} ${arrow}</span>`;
+    document.getElementById('a-net-card').className = 'stat-card ' + (net >= 0 ? 'net-pos' : 'net-neg');
+
+    // Destroy old charts before redrawing
+    if (monthlyChart) { monthlyChart.destroy(); monthlyChart = null; }
+    if (netChart) { netChart.destroy(); netChart = null; }
 
     // Monthly chart
     const sorted = [...monthly].reverse();
     const labels = sorted.map(m => MONTH_NAMES[parseInt(m.month)] + "'" + m.year.slice(2));
 
-    new Chart(document.getElementById('monthly-chart'), {
+    monthlyChart = new Chart(document.getElementById('monthly-chart'), {
       type: 'bar',
       data: {
         labels,
         datasets: [
-          { label: 'Income', data: sorted.map(m => (m.m_income/100).toFixed(2)), backgroundColor: 'rgba(74,222,128,0.7)', borderRadius: 4 },
-          { label: 'Expense', data: sorted.map(m => (m.m_expense/100).toFixed(2)), backgroundColor: 'rgba(248,113,113,0.7)', borderRadius: 4 }
+          { label: 'Income', data: sorted.map(m => parseFloat(m.income).toFixed(2)), backgroundColor: 'rgba(74,222,128,0.7)', borderRadius: 4 },
+          { label: 'Expense', data: sorted.map(m => parseFloat(m.expense).toFixed(2)), backgroundColor: 'rgba(248,113,113,0.7)', borderRadius: 4 }
         ]
       },
       options: {
@@ -142,13 +314,13 @@ async function loadAnalysis() {
     });
 
     // Net savings line chart
-    new Chart(document.getElementById('net-chart'), {
+    netChart = new Chart(document.getElementById('net-chart'), {
       type: 'line',
       data: {
         labels,
         datasets: [{
           label: 'Net',
-          data: sorted.map(m => ((m.m_income - m.m_expense)/100).toFixed(2)),
+          data: sorted.map(m => parseFloat(m.net).toFixed(2)),
           borderColor: '#60a5fa',
           backgroundColor: 'rgba(96,165,250,0.1)',
           fill: true,
@@ -167,12 +339,12 @@ async function loadAnalysis() {
       }
     });
 
-    // Category bars
-    const totalExp = cats.reduce((s, c) => s + (c.expense || 0), 0);
-    const totalInc = cats.reduce((s, c) => s + (c.income || 0), 0);
+    // Category bars — values are already in rupees from API
+    const totalExp = cats.reduce((s, c) => s + parseFloat(c.expense), 0);
+    const totalInc = cats.reduce((s, c) => s + parseFloat(c.income), 0);
 
-    const expCats = cats.filter(c => c.expense > 0).sort((a, b) => b.expense - a.expense);
-    const incCats = cats.filter(c => c.income > 0).sort((a, b) => b.income - a.income);
+    const expCats = cats.filter(c => parseFloat(c.expense) > 0).sort((a, b) => parseFloat(b.expense) - parseFloat(a.expense));
+    const incCats = cats.filter(c => parseFloat(c.income) > 0).sort((a, b) => parseFloat(b.income) - parseFloat(a.income));
 
     document.getElementById('exp-cat-list').innerHTML = expCats.length
       ? expCats.map((c, i) => categoryBar(c.category, c.expense, totalExp, CAT_COLORS[i % CAT_COLORS.length])).join('')
@@ -182,33 +354,21 @@ async function loadAnalysis() {
       ? incCats.map((c, i) => categoryBar(c.category, c.income, totalInc, CAT_COLORS[i % CAT_COLORS.length])).join('')
       : '<div class="empty-state">no income data</div>';
 
-    // Monthly table
-    const tbody = document.getElementById('monthly-tbody');
-    tbody.innerHTML = monthly.map(m => {
-      const net = m.m_income - m.m_expense;
-      const savingsRate = m.m_income > 0 ? Math.round((net / m.m_income) * 100) : 0;
-      const netColor = net >= 0 ? 'var(--accent)' : 'var(--red)';
-      return `
-        <tr>
-          <td class="primary" style="font-family:var(--mono)">${MONTH_NAMES[parseInt(m.month)]} ${m.year}</td>
-          <td style="font-family:var(--mono);color:var(--accent)">₹${formatRupees(m.m_income/100)}</td>
-          <td style="font-family:var(--mono);color:var(--red)">₹${formatRupees(m.m_expense/100)}</td>
-          <td style="font-family:var(--mono);color:${netColor};font-weight:500">₹${formatRupees(net/100)}</td>
-          <td>
-            <div style="display:flex;align-items:center;gap:8px;">
-              <div class="progress-bar" style="width:80px;margin:0;">
-                <div class="progress-fill" style="width:${Math.max(0,savingsRate)}%;background:${netColor}"></div>
-              </div>
-              <span style="font-family:var(--mono);font-size:12px;color:${netColor}">${savingsRate}%</span>
-            </div>
-          </td>
-        </tr>`;
-    }).join('');
+    // Load summary table for current period
+    loadSummaryTable();
 
   } catch(e) {
     if (e.status === 401) { clearUser(); window.location.href = 'index.html'; }
   }
 }
+
+// Add active style for period/range buttons
+const style = document.createElement('style');
+style.textContent = `
+  .range-btn.active { background: var(--accent); color: #0d1117; border-color: var(--accent); }
+  .period-btn.active { background: var(--accent); color: #0d1117; border-color: var(--accent); }
+`;
+document.head.appendChild(style);
 
 loadAnalysis();
 </script>

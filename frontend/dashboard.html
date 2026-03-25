@@ -16,12 +16,24 @@
       <div class="page-sub" id="date-sub"></div>
     </div>
 
-    <!-- STAT CARDS -->
-    <div class="stats-grid" id="stats-grid">
-      <div class="stat-card income"><div class="stat-label">Total Income</div><div class="stat-value" id="stat-income">—</div></div>
-      <div class="stat-card expense"><div class="stat-label">Total Expense</div><div class="stat-value" id="stat-expense">—</div></div>
-      <div class="stat-card net-pos" id="stat-net-card"><div class="stat-label">Net Balance</div><div class="stat-value" id="stat-net">—</div></div>
-      <!-- <div class="stat-card" style="border-top: 2px solid var(--purple)"><div class="stat-label">Transactions</div><div class="stat-value" style="color:var(--purple)" id="stat-count">—</div></div> -->
+    <!-- STAT CARDS: this month + all-time net -->
+    <div class="stats-grid" style="grid-template-columns:repeat(4,minmax(0,1fr))">
+      <div class="stat-card income">
+        <div class="stat-label">This Month — Income</div>
+        <div class="stat-value" id="stat-month-income">—</div>
+      </div>
+      <div class="stat-card expense">
+        <div class="stat-label">This Month — Expense</div>
+        <div class="stat-value" id="stat-month-expense">—</div>
+      </div>
+      <div class="stat-card net-pos" id="stat-month-net-card">
+        <div class="stat-label">This Month — Net</div>
+        <div class="stat-value" id="stat-month-net">—</div>
+      </div>
+      <div class="stat-card net-pos" id="stat-alltime-net-card">
+        <div class="stat-label">All Time — Net</div>
+        <div class="stat-value" id="stat-alltime-net">—</div>
+      </div>
     </div>
 
     <!-- CHARTS ROW -->
@@ -79,38 +91,51 @@ const CHART_DEFAULTS = {
   font: "'DM Mono', monospace"
 };
 
+function netDisplay(netStr, cardId, valueId) {
+  const net = parseFloat(netStr);
+  const arrow = net >= 0 ? ' ↑' : ' ↓';
+  const color = net >= 0 ? 'var(--accent)' : 'var(--red)';
+  document.getElementById(valueId).innerHTML = `<span style="color:${color}">₹${formatRupees(netStr)}${arrow}</span>`;
+  document.getElementById(cardId).className = 'stat-card ' + (net >= 0 ? 'net-pos' : 'net-neg');
+}
+
 async function loadDashboard() {
   try {
-    const [analysis, monthly, catData, txData] = await Promise.all([
+    // Get current month range
+    const now = new Date();
+    const pad = n => String(n).padStart(2, '0');
+    const monthStart = `${now.getFullYear()}-${pad(now.getMonth()+1)}-01`;
+    const monthEnd = new Date(now.getFullYear(), now.getMonth()+1, 0);
+    const monthEndStr = `${monthEnd.getFullYear()}-${pad(monthEnd.getMonth()+1)}-${pad(monthEnd.getDate())}`;
+
+    const [allTime, thisMonth, monthly, catData, txData] = await Promise.all([
       apiFetch('/api/analysis'),
+      apiFetch(`/api/analysis?start_date=${monthStart}&end_date=${monthEndStr}`),
       apiFetch('/api/analysis/monthly'),
       apiFetch('/api/analysis/categories'),
       apiFetch('/api/transactions')
     ]);
 
-    // Stats
-    document.getElementById('stat-income').textContent = '₹' + formatRupees(analysis.total_income);
-    document.getElementById('stat-expense').textContent = '₹' + formatRupees(analysis.total_expense);
-    const net = parseFloat(analysis.net);
-    document.getElementById('stat-net').textContent = '₹' + formatRupees(analysis.net);
-    const netCard = document.getElementById('stat-net-card');
-    netCard.className = 'stat-card ' + (net >= 0 ? 'net-pos' : 'net-neg');
-    // document.getElementById('stat-count').textContent = txData.transactions.length;
+    // This month cards
+    document.getElementById('stat-month-income').textContent = '₹' + formatRupees(thisMonth.total_income);
+    document.getElementById('stat-month-expense').textContent = '₹' + formatRupees(thisMonth.total_expense);
+    netDisplay(thisMonth.net, 'stat-month-net-card', 'stat-month-net');
 
-    // Monthly chart
+    // All time net
+    netDisplay(allTime.net, 'stat-alltime-net-card', 'stat-alltime-net');
+
+    // Monthly chart — last 6 months
     const last6 = monthly.slice(0, 6).reverse();
-    const monthLabels = last6.map(m => {
-      const names = ['','Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
-      return names[parseInt(m.month)] + ' ' + m.year.slice(2);
-    });
+    const MONTH_NAMES = ['','Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+    const monthLabels = last6.map(m => MONTH_NAMES[parseInt(m.month)] + ' ' + m.year.slice(2));
 
     new Chart(document.getElementById('monthly-chart'), {
       type: 'bar',
       data: {
         labels: monthLabels,
         datasets: [
-          { label: 'Income', data: last6.map(m => (m.m_income/100).toFixed(2)), backgroundColor: 'rgba(74,222,128,0.7)', borderRadius: 4 },
-          { label: 'Expense', data: last6.map(m => (m.m_expense/100).toFixed(2)), backgroundColor: 'rgba(248,113,113,0.7)', borderRadius: 4 }
+          { label: 'Income', data: last6.map(m => parseFloat(m.income).toFixed(2)), backgroundColor: 'rgba(74,222,128,0.7)', borderRadius: 4 },
+          { label: 'Expense', data: last6.map(m => parseFloat(m.expense).toFixed(2)), backgroundColor: 'rgba(248,113,113,0.7)', borderRadius: 4 }
         ]
       },
       options: {
@@ -130,7 +155,7 @@ async function loadDashboard() {
       type: 'doughnut',
       data: {
         labels: expCats.map(c => c.category),
-        datasets: [{ data: expCats.map(c => (c.expense/100).toFixed(2)), backgroundColor: catColors, borderWidth: 0 }]
+        datasets: [{ data: expCats.map(c => parseFloat(c.expense).toFixed(2)), backgroundColor: catColors, borderWidth: 0 }]
       },
       options: {
         responsive: true, maintainAspectRatio: false,
@@ -141,24 +166,26 @@ async function loadDashboard() {
       }
     });
 
-    // Recent transactions (last 5)
+    // Recent transactions
     const tbody = document.getElementById('recent-tbody');
     const txs = Array.isArray(txData) ? txData : txData.transactions || [];
     const recent = txs.slice(0, 5);
-    // const recent = txData.slice(0, 5);
     if (!recent.length) {
       tbody.innerHTML = '<tr><td colspan="5"><div class="empty-state">no transactions yet</div></td></tr>';
       return;
     }
-    tbody.innerHTML = recent.map(t => `
+    tbody.innerHTML = recent.map(t => {
+      const isDebit = t.type === 'db';
+      const amountDisplay = isDebit ? `-₹${formatRupees(t.amount)}` : `₹${formatRupees(t.amount)}`;
+      return `
       <tr>
         <td style="font-family:var(--mono);font-size:12px">${t.date}</td>
         <td class="primary">${t.description || '—'}</td>
         <td>${t.category}</td>
         <td><span class="badge badge-${t.type}">${t.type === 'cr' ? 'Credit' : 'Debit'}</span></td>
-        <td style="font-family:var(--mono);font-weight:500;color:${t.type==='cr'?'var(--accent)':'var(--red)'}">₹${formatRupees(t.amount)}</td>
-      </tr>
-    `).join('');
+        <td style="font-family:var(--mono);font-weight:500;color:${isDebit ? 'var(--red)' : 'var(--accent)'}">${amountDisplay}</td>
+      </tr>`;
+    }).join('');
   } catch(e) {
     if (e.status === 401) { clearUser(); window.location.href = 'index.html'; }
   }

@@ -20,7 +20,6 @@ CORS(app, supports_credentials=True)
 login_manager = LoginManager()
 login_manager.init_app(app)
 
-
 # ---- DATABASE ----
 
 db = DataBase(DB_PATH)
@@ -52,7 +51,6 @@ def get_transactions():
         "end_date": request.args.get("end_date", None),
         "t_type": request.args.get("t_type", None)
     }
-    print(filters)
     return jsonify(transaction_service.get_paginated(db, page, limit, sort_by, sort_order, current_user.id, filters)), 200
 
 

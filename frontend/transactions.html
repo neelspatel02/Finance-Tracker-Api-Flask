@@ -30,11 +30,19 @@
         <option value="desc">Descending</option>
         <option value="asc">Ascending</option>
       </select>
-      <select class="form-select" id="page-limit" onchange="currentPage=1; loadTransactions();">
+      <select class="form-select" id="page-limit" onchange="currentPage=1; loadTransactions()">
         <option value="15">15 / page</option>
         <option value="30">30 / page</option>
         <option value="50">50 / page</option>
       </select>
+      <select class="form-select" id="filter-type" onchange="currentPage=1; loadTransactions()">
+        <option value="">All Types</option>
+        <option value="cr">Credit only</option>
+        <option value="db">Debit only</option>
+      </select>
+      <input class="form-input" type="date" id="filter-start" style="width:160px;padding:0.45rem 0.75rem;font-size:13px;" onchange="currentPage=1; loadTransactions()">
+      <input class="form-input" type="date" id="filter-end" style="width:160px;padding:0.45rem 0.75rem;font-size:13px;" onchange="currentPage=1; loadTransactions()">
+      <button class="btn btn-sm" onclick="clearFilters()">Clear</button>
     </div>
 
     <!-- TABLE -->
@@ -123,34 +131,59 @@ let totalPages = 1;
 let selectedType = '';
 let categories = [];
 
+function clearFilters() {
+  document.getElementById('filter-start').value = '';
+  document.getElementById('filter-end').value = '';
+  document.getElementById('filter-type').value = '';
+  currentPage = 1;
+  loadTransactions();
+}
+
 async function loadTransactions() {
   const sortBy = document.getElementById('sort-by').value;
   const sortOrder = document.getElementById('sort-order').value;
   const limit = document.getElementById('page-limit').value;
+  const filterType = document.getElementById('filter-type').value;
+  const startDate = document.getElementById('filter-start').value;
+  const endDate = document.getElementById('filter-end').value;
   const tbody = document.getElementById('tx-tbody');
   tbody.innerHTML = '<tr><td colspan="8"><div class="loading"><div class="spinner"></div></div></td></tr>';
+
+  const params = new URLSearchParams({
+    sort_by: sortBy,
+    sort_order: sortOrder,
+    limit,
+    page: currentPage
+  });
+  if (filterType) params.set('t_type', filterType);
+  if (startDate) params.set('start_date', startDate);
+  if (endDate) params.set('end_date', endDate);
+
   try {
-    const data = await apiFetch(`/api/transactions?sort_by=${sortBy}&sort_order=${sortOrder}&limit=${limit}&page=${currentPage}`);
+    const data = await apiFetch(`/api/transactions?${params.toString()}`);
     const txs = Array.isArray(data) ? data : data.transactions || [];
     totalPages = data.total_pages || 1;
     document.getElementById('tx-count-sub').textContent = `${txs.length} entries`;
     if (!txs.length) {
-      tbody.innerHTML = '<tr><td colspan="8"><div class="empty-state">no transactions yet</div></td></tr>';
+      tbody.innerHTML = '<tr><td colspan="8"><div class="empty-state">no transactions found</div></td></tr>';
     } else {
-      tbody.innerHTML = txs.map((t, i) => `
+      tbody.innerHTML = txs.map((t, i) => {
+        const isDebit = t.type === 'db';
+        const amountDisplay = isDebit ? `-₹${formatRupees(t.amount)}` : `₹${formatRupees(t.amount)}`;
+        return `
         <tr>
           <td style="font-family:var(--mono);font-size:12px;color:var(--text3)">${((currentPage-1)*parseInt(limit))+i+1}</td>
           <td style="font-family:var(--mono);font-size:12px">${t.date}</td>
           <td style="font-family:var(--mono);font-size:12px;color:var(--text3)">${t.time || '—'}</td>
-          <td style="font-family:var(--mono);font-weight:500;color:${t.type==='cr'?'var(--accent)':'var(--red)'}">₹${formatRupees(t.amount)}</td>
+          <td style="font-family:var(--mono);font-weight:500;color:${isDebit ? 'var(--red)' : 'var(--accent)'}">${amountDisplay}</td>
           <td><span class="badge badge-${t.type}">${t.type==='cr'?'Credit':'Debit'}</span></td>
           <td>${t.category}</td>
           <td style="color:var(--text2);max-width:200px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${t.description||'—'}</td>
           <td>
             <button class="btn btn-danger" onclick="deleteTransaction(${t.id})">Delete</button>
           </td>
-        </tr>
-      `).join('');
+        </tr>`;
+      }).join('');
     }
     renderPagination();
   } catch(e) {

@@ -25,7 +25,6 @@ class DataBase:
                     category TEXT NOT NULL UNIQUE
                 )""")
         
-### here - done
         cursor.execute("""
                 CREATE TABLE IF NOT EXISTS transactions(
                     t_id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -352,7 +351,6 @@ class DataBase:
         if start_date:
             query += " AND t.t_date >= ?"
             params.append(start_date)
-
         if end_date:
             query += " AND t.t_date <= ?"
             params.append(end_date)
