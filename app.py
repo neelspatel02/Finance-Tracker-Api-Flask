@@ -12,7 +12,7 @@ app = Flask(__name__)
 
 
 app.secret_key = os.getenv("SECRET_KEY")
-DB_PATH = os.getenv("DB_PATH", "pft.db")
+DB_PATH = os.getenv("DB_PATH", "")
 
 CORS(app, supports_credentials=True)
 
@@ -82,21 +82,21 @@ def delete_transactions(id):
 @app.route("/api/categories", methods=["GET"])
 @login_required
 def get_categories():
-    return jsonify(category_service.get_all()), 200
+    return jsonify(category_service.get_all(db)), 200
 
 
 @app.route("/api/categories",methods=["POST"])
 @login_required
 def add_categories():
     data = request.get_json()
-    result, status = category_service.add(data)
+    result, status = category_service.add(db, data)
     return jsonify(result), status
 
 
 @app.route("/api/categories/<id>", methods=["DELETE"])
 @login_required
 def delete_categories(id):
-    result, status = category_service.delete(id)
+    result, status = category_service.delete(db, id)
     return jsonify(result), status
 
 

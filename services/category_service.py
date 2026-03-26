@@ -1,15 +1,15 @@
 from database import DataBase
 
-DB_PATH = "pft.db"
+# DB_PATH = "pft.db"
 
-db = DataBase(DB_PATH)
+# db = DataBase(DB_PATH)
 
-def get_all():
+def get_all(db):
     rows = db.get_categories()
     return [dict(row) for row in rows]
 
 
-def add(data):
+def add(db,data):
     category = data.get("category")
     try:
         db.add_new_category(category)
@@ -17,7 +17,7 @@ def add(data):
     except ValueError as e:
         return {"message": str(e)}, 400
     
-def delete(id):
+def delete(db, id):
     try:
         db.delete_category(id)
         return {"message": "Category deleted"}, 201
