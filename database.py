@@ -48,6 +48,11 @@ class DataBase:
                     created_at DATETIME DEFAULT CURRENT_TIMESTAMP
                 )""")   
         
+        cursor.execute("CREATE INDEX IF NOT EXISTS idx_transactions_user_id ON transactions(user_id)")
+        cursor.execute("CREATE INDEX IF NOT EXISTS idx_transactions_date_id ON transactions(t_date)")
+        cursor.execute("CREATE INDEX IF NOT EXISTS idx_transactions_user_date ON transactions(user_id, t_date)")
+        cursor.execute("CREATE INDEX IF NOT EXISTS idx_transactions_type ON transactions(t_type)")
+
         self.connection.commit()
 
 
@@ -292,30 +297,28 @@ class DataBase:
         result = cursor.fetchall()
         return result or 0
 
-
+ 
 # WEEKLY REPORT
     def get_weekly_report(self, user_id, start_date=None, end_date=None):
         self.connect()
         cursor = self.connection.cursor()
-
         params = [user_id]
 
         query = """
                 SELECT strftime("%Y", t_date) as year,
                     strftime("%m", t_date) as month,
-                    strftime("%W", t_date) as week,
+                    ((strftime("%d", t_date) -1)/ 7 +1 ) as week_of_month,
                     SUM(CASE WHEN t_type = "cr" THEN amount_in_paise ELSE 0 END) as income,
                     SUM(CASE WHEN t_type = "db" THEN amount_in_paise ELSE 0 END) as expense
                 FROM transactions
                 WHERE user_id = ?"""
-        
-        query_end = """ GROUP BY year, month, week
-                ORDER BY year DESC, month DESC, week DESC;
-                """
-        
-        new_query, params = self._query_maker(query, params, start_date, end_date)
 
+        query_end = """ GROUP BY year, month, week_of_month
+                ORDER BY year DESC, month DESC, week_of_month DESC;
+                """
+        new_query, params = self._query_maker(query, params, start_date, end_date)
         query = new_query + query_end
+
         cursor.execute(query, tuple(params))
         result = cursor.fetchall()
         return result or 0

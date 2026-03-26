@@ -1,5 +1,4 @@
 import os
-from database import DataBase
 from dotenv import load_dotenv
 from flask import Flask, jsonify, request, send_from_directory
 from flask_cors import CORS
@@ -22,7 +21,16 @@ login_manager.init_app(app)
 
 # ---- DATABASE ----
 
-db = DataBase(DB_PATH)
+DATABASE_URL = os.getenv("DATABASE_URL")
+
+if DATABASE_URL:
+    from database_pg import DataBase
+    db = DataBase(DATABASE_URL)
+
+else:
+    from database import DataBase
+    db = DataBase(DB_PATH)
+
 db.connect()
 db.create_tables()
 
@@ -203,4 +211,5 @@ def get_user():
 def handle_exception(e):
     return jsonify({"message": "Somthing went wrong"}), 500
 
-app.run(debug=True)
+if __name__ == "__main__":
+    app.run(debug=True)

@@ -8,7 +8,7 @@ def format_data(row):
             "expense": paise_to_rupees(row["expense"]),
             "net": paise_to_rupees(row["income"] - row["expense"])
         }
-#==========================================================================
+#---------------------------------------------------------------------
 
 def get_total(db, user_id, start_date, end_date):
     income = db.get_total_income(user_id, start_date, end_date)

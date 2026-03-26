@@ -16,7 +16,7 @@
       <div class="page-sub" id="date-sub"></div>
     </div>
 
-    <!-- STAT CARDS: this month + all-time net -->
+    <!-- STAT CARDS -->
     <div class="stats-grid" style="grid-template-columns:repeat(4,minmax(0,1fr))">
       <div class="stat-card income">
         <div class="stat-label">This Month — Income</div>
@@ -49,7 +49,12 @@
       </div>
       <div class="card">
         <div class="section-header">
-          <div class="section-title">Expense by Category</div>
+          <div class="section-title">By Category</div>
+          <!-- Toggle -->
+          <div style="display:flex;gap:4px;">
+            <button class="btn btn-sm donut-toggle active" id="toggle-expense" onclick="switchDonut('expense')">Expense</button>
+            <button class="btn btn-sm donut-toggle" id="toggle-income" onclick="switchDonut('income')">Income</button>
+          </div>
         </div>
         <div class="chart-container">
           <canvas id="cat-chart"></canvas>
@@ -90,6 +95,11 @@ const CHART_DEFAULTS = {
   grid: 'rgba(255,255,255,0.05)',
   font: "'DM Mono', monospace"
 };
+const catColors = ['#4ade80','#f87171','#60a5fa','#fbbf24','#a78bfa','#34d399','#fb923c'];
+
+let catChart = null;
+let allCatData = [];
+let currentDonut = 'expense';
 
 function netDisplay(netStr, cardId, valueId) {
   const net = parseFloat(netStr);
@@ -99,9 +109,41 @@ function netDisplay(netStr, cardId, valueId) {
   document.getElementById(cardId).className = 'stat-card ' + (net >= 0 ? 'net-pos' : 'net-neg');
 }
 
+function buildDonut(type) {
+  const filtered = allCatData.filter(c => parseFloat(c[type]) > 0);
+  if (catChart) { catChart.destroy(); catChart = null; }
+
+  if (!filtered.length) {
+    document.getElementById('cat-chart').style.display = 'none';
+    return;
+  }
+  document.getElementById('cat-chart').style.display = 'block';
+
+  catChart = new Chart(document.getElementById('cat-chart'), {
+    type: 'doughnut',
+    data: {
+      labels: filtered.map(c => c.category),
+      datasets: [{ data: filtered.map(c => parseFloat(c[type]).toFixed(2)), backgroundColor: catColors, borderWidth: 0 }]
+    },
+    options: {
+      responsive: true, maintainAspectRatio: false,
+      plugins: {
+        legend: { position: 'right', labels: { color: CHART_DEFAULTS.color, font: { family: CHART_DEFAULTS.font, size: 11 }, boxWidth: 10, padding: 8 } }
+      },
+      cutout: '65%'
+    }
+  });
+}
+
+function switchDonut(type) {
+  currentDonut = type;
+  document.getElementById('toggle-expense').classList.toggle('active', type === 'expense');
+  document.getElementById('toggle-income').classList.toggle('active', type === 'income');
+  buildDonut(type);
+}
+
 async function loadDashboard() {
   try {
-    // Get current month range
     const now = new Date();
     const pad = n => String(n).padStart(2, '0');
     const monthStart = `${now.getFullYear()}-${pad(now.getMonth()+1)}-01`;
@@ -116,15 +158,13 @@ async function loadDashboard() {
       apiFetch('/api/transactions')
     ]);
 
-    // This month cards
+    // Stat cards
     document.getElementById('stat-month-income').textContent = '₹' + formatRupees(thisMonth.total_income);
     document.getElementById('stat-month-expense').textContent = '₹' + formatRupees(thisMonth.total_expense);
     netDisplay(thisMonth.net, 'stat-month-net-card', 'stat-month-net');
-
-    // All time net
     netDisplay(allTime.net, 'stat-alltime-net-card', 'stat-alltime-net');
 
-    // Monthly chart — last 6 months
+    // Monthly bar chart — last 6 months
     const last6 = monthly.slice(0, 6).reverse();
     const MONTH_NAMES = ['','Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
     const monthLabels = last6.map(m => MONTH_NAMES[parseInt(m.month)] + ' ' + m.year.slice(2));
@@ -148,23 +188,9 @@ async function loadDashboard() {
       }
     });
 
-    // Category donut
-    const expCats = catData.filter(c => parseFloat(c.expense) > 0);
-    const catColors = ['#4ade80','#f87171','#60a5fa','#fbbf24','#a78bfa','#34d399','#fb923c'];
-    new Chart(document.getElementById('cat-chart'), {
-      type: 'doughnut',
-      data: {
-        labels: expCats.map(c => c.category),
-        datasets: [{ data: expCats.map(c => parseFloat(c.expense).toFixed(2)), backgroundColor: catColors, borderWidth: 0 }]
-      },
-      options: {
-        responsive: true, maintainAspectRatio: false,
-        plugins: {
-          legend: { position: 'right', labels: { color: CHART_DEFAULTS.color, font: { family: CHART_DEFAULTS.font, size: 11 }, boxWidth: 10, padding: 8 } }
-        },
-        cutout: '65%'
-      }
-    });
+    // Donut chart — store data, build expense view by default
+    allCatData = catData;
+    buildDonut('expense');
 
     // Recent transactions
     const tbody = document.getElementById('recent-tbody');
@@ -190,6 +216,11 @@ async function loadDashboard() {
     if (e.status === 401) { clearUser(); window.location.href = 'index.html'; }
   }
 }
+
+// Toggle button styles
+const style = document.createElement('style');
+style.textContent = `.donut-toggle.active { background: var(--accent); color: #0d1117; border-color: var(--accent); }`;
+document.head.appendChild(style);
 
 loadDashboard();
 </script>

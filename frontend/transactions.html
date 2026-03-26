@@ -10,39 +10,81 @@
 <div class="app-layout">
   <div id="sidebar"></div>
   <main class="main-content">
-    <div class="page-header" style="display:flex;align-items:flex-start;justify-content:space-between;">
+
+    <!-- PAGE HEADER with range buttons on the right -->
+    <div class="page-header" style="display:flex;align-items:flex-start;justify-content:space-between;margin-bottom:1.25rem;">
       <div>
         <div class="page-title">Transactions</div>
         <div class="page-sub" id="tx-count-sub">loading...</div>
       </div>
-      <button class="btn btn-primary" onclick="openModal()">+ Add Transaction</button>
+      <div style="display:flex;align-items:center;gap:0.5rem;flex-wrap:wrap;justify-content:flex-end;">
+        <div style="display:flex;gap:0.4rem;">
+          <button class="btn btn-sm tx-range-btn active" onclick="setTxRange('all', event)">All</button>
+          <button class="btn btn-sm tx-range-btn" onclick="setTxRange('month', event)">This Month</button>
+          <button class="btn btn-sm tx-range-btn" onclick="setTxRange('custom', event)">Custom</button>
+        </div>
+        <button class="btn btn-primary" onclick="openModal()">+ Add</button>
+      </div>
     </div>
 
-    <!-- FILTERS -->
-    <div class="filters-bar">
-      <select class="form-select" id="sort-by" onchange="loadTransactions()">
-        <option value="date">Sort: Date</option>
-        <option value="amount">Sort: Amount</option>
-        <option value="type">Sort: Type</option>
-        <option value="category">Sort: Category</option>
-      </select>
-      <select class="form-select" id="sort-order" onchange="loadTransactions()">
-        <option value="desc">Descending</option>
-        <option value="asc">Ascending</option>
-      </select>
-      <select class="form-select" id="page-limit" onchange="currentPage=1; loadTransactions()">
-        <option value="15">15 / page</option>
-        <option value="30">30 / page</option>
-        <option value="50">50 / page</option>
-      </select>
-      <select class="form-select" id="filter-type" onchange="currentPage=1; loadTransactions()">
-        <option value="">All Types</option>
-        <option value="cr">Credit only</option>
-        <option value="db">Debit only</option>
-      </select>
-      <input class="form-input" type="date" id="filter-start" style="width:160px;padding:0.45rem 0.75rem;font-size:13px;" onchange="currentPage=1; loadTransactions()">
-      <input class="form-input" type="date" id="filter-end" style="width:160px;padding:0.45rem 0.75rem;font-size:13px;" onchange="currentPage=1; loadTransactions()">
+    <!-- CUSTOM DATE RANGE (hidden by default) -->
+    <div id="tx-custom-range" style="display:none;gap:0.75rem;align-items:center;margin-bottom:1rem;flex-wrap:wrap;" class="filters-bar">
+      <div style="display:flex;align-items:center;gap:0.5rem;">
+        <label style="font-size:12px;color:var(--text3);font-family:var(--mono);">FROM</label>
+        <input class="form-input" type="date" id="filter-start" style="width:155px;padding:0.4rem 0.75rem;font-size:13px;">
+      </div>
+      <div style="display:flex;align-items:center;gap:0.5rem;">
+        <label style="font-size:12px;color:var(--text3);font-family:var(--mono);">TO</label>
+        <input class="form-input" type="date" id="filter-end" style="width:155px;padding:0.4rem 0.75rem;font-size:13px;">
+      </div>
+      <button class="btn btn-primary btn-sm" onclick="applyTxCustomRange()">Apply</button>
       <button class="btn btn-sm" onclick="clearFilters()">Clear</button>
+    </div>
+
+    <!-- FILTER BAR: labeled dropdowns in a card -->
+    <div class="card" style="padding:0.875rem 1.25rem;margin-bottom:1rem;">
+      <div style="display:flex;gap:2rem;align-items:flex-end;flex-wrap:wrap;">
+
+        <div>
+          <div style="font-size:10px;font-family:var(--mono);color:var(--text3);text-transform:uppercase;letter-spacing:0.06em;margin-bottom:0.35rem;">Sort by</div>
+          <select class="form-select" id="sort-by" onchange="loadTransactions()" style="width:130px;padding:0.4rem 0.75rem;font-size:13px;">
+            <option value="date">Date</option>
+            <option value="amount">Amount</option>
+            <option value="type">Type</option>
+            <option value="category">Category</option>
+          </select>
+        </div>
+
+        <div>
+          <div style="font-size:10px;font-family:var(--mono);color:var(--text3);text-transform:uppercase;letter-spacing:0.06em;margin-bottom:0.35rem;">Type</div>
+          <select class="form-select" id="filter-type" onchange="currentPage=1; loadTransactions()" style="width:130px;padding:0.4rem 0.75rem;font-size:13px;">
+            <option value="">All Types</option>
+            <option value="cr">Credit</option>
+            <option value="db">Debit</option>
+          </select>
+        </div>
+
+        <div>
+          <div style="font-size:10px;font-family:var(--mono);color:var(--text3);text-transform:uppercase;letter-spacing:0.06em;margin-bottom:0.35rem;">Order</div>
+          <select class="form-select" id="sort-order" onchange="loadTransactions()" style="width:120px;padding:0.4rem 0.75rem;font-size:13px;">
+            <option value="desc">Descending</option>
+            <option value="asc">Ascending</option>
+          </select>
+        </div>
+
+        <!-- vertical divider -->
+        <div style="width:1px;height:36px;background:var(--border);align-self:flex-end;margin-bottom:1px;"></div>
+
+        <div>
+          <div style="font-size:10px;font-family:var(--mono);color:var(--text3);text-transform:uppercase;letter-spacing:0.06em;margin-bottom:0.35rem;">Per page</div>
+          <select class="form-select" id="page-limit" onchange="currentPage=1; loadTransactions()" style="width:110px;padding:0.4rem 0.75rem;font-size:13px;">
+            <option value="15">15</option>
+            <option value="30">30</option>
+            <option value="50">50</option>
+          </select>
+        </div>
+
+      </div>
     </div>
 
     <!-- TABLE -->
@@ -61,6 +103,7 @@
       </div>
       <div class="pagination" id="pagination"></div>
     </div>
+
   </main>
 </div>
 
@@ -130,13 +173,47 @@ let currentPage = 1;
 let totalPages = 1;
 let selectedType = '';
 let categories = [];
+let txStartDate = null;
+let txEndDate = null;
+
+function setTxRange(type, event) {
+  document.querySelectorAll('.tx-range-btn').forEach(b => b.classList.remove('active'));
+  if (event && event.target) event.target.classList.add('active');
+  document.getElementById('tx-custom-range').style.display = 'none';
+
+  const now = new Date();
+  const pad = n => String(n).padStart(2, '0');
+
+  if (type === 'all') {
+    txStartDate = null; txEndDate = null;
+    currentPage = 1; loadTransactions();
+  } else if (type === 'month') {
+    txStartDate = `${now.getFullYear()}-${pad(now.getMonth()+1)}-01`;
+    const last = new Date(now.getFullYear(), now.getMonth()+1, 0);
+    txEndDate = `${now.getFullYear()}-${pad(now.getMonth()+1)}-${pad(last.getDate())}`;
+    currentPage = 1; loadTransactions();
+  } else if (type === 'custom') {
+    document.getElementById('tx-custom-range').style.display = 'flex';
+  }
+}
+
+function applyTxCustomRange() {
+  const start = document.getElementById('filter-start').value;
+  const end = document.getElementById('filter-end').value;
+  if (!start || !end) return;
+  txStartDate = start; txEndDate = end;
+  currentPage = 1; loadTransactions();
+}
 
 function clearFilters() {
   document.getElementById('filter-start').value = '';
   document.getElementById('filter-end').value = '';
   document.getElementById('filter-type').value = '';
-  currentPage = 1;
-  loadTransactions();
+  document.getElementById('tx-custom-range').style.display = 'none';
+  document.querySelectorAll('.tx-range-btn').forEach(b => b.classList.remove('active'));
+  document.querySelector('.tx-range-btn').classList.add('active');
+  txStartDate = null; txEndDate = null;
+  currentPage = 1; loadTransactions();
 }
 
 async function loadTransactions() {
@@ -144,26 +221,20 @@ async function loadTransactions() {
   const sortOrder = document.getElementById('sort-order').value;
   const limit = document.getElementById('page-limit').value;
   const filterType = document.getElementById('filter-type').value;
-  const startDate = document.getElementById('filter-start').value;
-  const endDate = document.getElementById('filter-end').value;
   const tbody = document.getElementById('tx-tbody');
   tbody.innerHTML = '<tr><td colspan="8"><div class="loading"><div class="spinner"></div></div></td></tr>';
 
-  const params = new URLSearchParams({
-    sort_by: sortBy,
-    sort_order: sortOrder,
-    limit,
-    page: currentPage
-  });
+  const params = new URLSearchParams({ sort_by: sortBy, sort_order: sortOrder, limit, page: currentPage });
   if (filterType) params.set('t_type', filterType);
-  if (startDate) params.set('start_date', startDate);
-  if (endDate) params.set('end_date', endDate);
+  if (txStartDate) params.set('start_date', txStartDate);
+  if (txEndDate) params.set('end_date', txEndDate);
 
   try {
     const data = await apiFetch(`/api/transactions?${params.toString()}`);
     const txs = Array.isArray(data) ? data : data.transactions || [];
     totalPages = data.total_pages || 1;
     document.getElementById('tx-count-sub').textContent = `${txs.length} entries`;
+
     if (!txs.length) {
       tbody.innerHTML = '<tr><td colspan="8"><div class="empty-state">no transactions found</div></td></tr>';
     } else {
@@ -179,9 +250,7 @@ async function loadTransactions() {
           <td><span class="badge badge-${t.type}">${t.type==='cr'?'Credit':'Debit'}</span></td>
           <td>${t.category}</td>
           <td style="color:var(--text2);max-width:200px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${t.description||'—'}</td>
-          <td>
-            <button class="btn btn-danger" onclick="deleteTransaction(${t.id})">Delete</button>
-          </td>
+          <td><button class="btn btn-danger" onclick="deleteTransaction(${t.id})">Delete</button></td>
         </tr>`;
       }).join('');
     }
@@ -208,8 +277,7 @@ function renderPagination() {
 
 function goPage(p) {
   if (p < 1 || p > totalPages) return;
-  currentPage = p;
-  loadTransactions();
+  currentPage = p; loadTransactions();
 }
 
 async function loadCategories() {
@@ -258,9 +326,7 @@ async function submitTransaction() {
       method: 'POST',
       body: JSON.stringify({ date, time, amount, t_type: selectedType, category_id, description })
     });
-    closeModal();
-    toast('transaction added');
-    loadTransactions();
+    closeModal(); toast('transaction added'); loadTransactions();
   } catch(e) {
     err.textContent = e.message || 'failed to add transaction';
   }
@@ -270,12 +336,15 @@ async function deleteTransaction(id) {
   if (!confirm('delete this transaction?')) return;
   try {
     await apiFetch(`/api/transactions/${id}`, { method: 'DELETE' });
-    toast('transaction deleted');
-    loadTransactions();
+    toast('transaction deleted'); loadTransactions();
   } catch(e) {
     toast(e.message || 'failed to delete', 'error');
   }
 }
+
+const style = document.createElement('style');
+style.textContent = `.tx-range-btn.active { background: var(--accent); color: #0d1117; border-color: var(--accent); }`;
+document.head.appendChild(style);
 
 loadTransactions();
 </script>
