@@ -14,7 +14,8 @@ class DataBase:
             self.connection.execute("PRAGMA foreign_keys = ON;")
         return self.connection
     
-    
+# ==================== CREATING TABLES ====================
+
     def create_tables(self):
         self.connect()
         cursor = self.connection.cursor()
@@ -49,7 +50,8 @@ class DataBase:
         
         self.connection.commit()
 
-# ----- users -----
+
+# ==================== USERS ====================
 
     def add_user(self, username, email, password_hash):
         self.connect()
@@ -62,10 +64,9 @@ class DataBase:
             """, (username, email, password_hash))
         
             self.connection.commit()
-            return True 
     
         except sqlite3.IntegrityError:
-            return False
+            raise ValueError("User or email alreasy exist")
             
     
     def get_user_by_username(self, username):
@@ -83,7 +84,7 @@ class DataBase:
         cursor.execute("SELECT * FROM users WHERE user_id = ?", (user_id,))
         return cursor.fetchone()
 
-# categories---
+# ==================== CATEGORIES ====================
 
     def get_categories(self):
         " Returns the table as a list of Row_obj. [row1, col2] "
@@ -100,19 +101,13 @@ class DataBase:
         self.connect()
         cursor = self.connection.cursor()
 
-
-
         try:
             cursor.execute(" INSERT INTO categories(category) VALUES (?)", (new_category,))
             self.connection.commit()
-
+        
         except sqlite3.IntegrityError:
-            return "Category already exist"
+            raise ValueError("Category alreasy exists")
         
-        else:
-            return "Category added"
-        
-
 
     def delete_category(self, id):
         try:
@@ -120,13 +115,12 @@ class DataBase:
             cursor = self.connection.cursor()
             cursor.execute("DELETE FROM categories WHERE category_id = ?", (id,))
             self.connection.commit()
-            return "catagory deleted" # Success
         
         except sqlite3.IntegrityError:
-            return "error occured" # Failure (Foreign Key Constraint)
+            raise ValueError("Category is in use and cannot be deleted")
 
 
-# transactions--
+# ==================== TRANSACTIONS ====================
 
     def get_transactions_count(self, user_id):
         self.connect()
@@ -188,7 +182,7 @@ class DataBase:
     def add_transaction(self, data):
         self.connect()
         cursor = self.connection.cursor()
-### here
+
         try: 
             cursor.execute("""
                     INSERT INTO transactions (user_id, t_date, amount_in_paise, t_type, category_id, description)       
@@ -198,24 +192,21 @@ class DataBase:
             self.connection.commit()
 
         except sqlite3.IntegrityError:
-            return "Error occured"
-        
-        else:
-            return "transaction added"
+            raise ValueError("Invalid category")
 
 
-    def delete_transaction(self, id):
+    def delete_transaction(self, transaction_id):
         self.connect()
         cursor = self.connection.cursor()
         try:
-            cursor.execute(" DELETE FROM transactions WHERE t_id = ? ",(id,))
+            cursor.execute(" DELETE FROM transactions WHERE t_id = ? ",(transaction_id,))
             self.connection.commit()
-            return "transaction deleted"
+
         except:
-            return "error occured"
+            raise ValueError("Transaction not found")
 
 
-#  Analytics part
+# ==================== ANALYSIS ====================
 
     def _query_maker(self, query, params, start_date=None, end_date=None):
         if start_date:
@@ -229,7 +220,7 @@ class DataBase:
         return query, params    #str, list
 
 
-    #  total report
+ #  total report
     def _get_total(self, t_type, user_id, start_date=None, end_date=None):
         self.connect()
         cursor = self.connection.cursor()
@@ -300,6 +291,7 @@ class DataBase:
         cursor.execute(query, tuple(params))
         result = cursor.fetchall()
         return result or 0
+
 
 # WEEKLY REPORT
     def get_weekly_report(self, user_id, start_date=None, end_date=None):

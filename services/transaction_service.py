@@ -50,10 +50,16 @@ def add(db, data, user_id):
         "description": data.get("description", "").strip() 
     }
 
-    db.add_transaction(db_data)
-    return {"message": "Transaction added"}
+    try:
+        db.add_transaction(db_data)
+        return {"message": "Transaction added"}, 201
+    except ValueError as e:
+        return {"message": str(e)}, 400
+    
 
-
-def delete(db, id):
-    db.delete_transaction(id)
-    return {"message": "Transactions Deleted"}
+def delete(db, transaction_id):
+    try:
+        db.delete_transaction(transaction_id)
+        return {"message": "Transactions Deleted"}, 201
+    except ValueError as e:
+        return {"message": str(e)}, 400

@@ -11,9 +11,15 @@ def get_all():
 
 def add(data):
     category = data.get("category")
-    result = db.add_new_category(category)
-    return {"message": result}
-
+    try:
+        db.add_new_category(category)
+        return {"message": "Category Added"}, 201
+    except ValueError as e:
+        return {"message": str(e)}, 400
+    
 def delete(id):
-    result = db.delete_category(id)
-    return {"message": result}
+    try:
+        db.delete_category(id)
+        return {"message": "Category deleted"}, 201
+    except ValueError as e:
+        return {"message": str(e)}, 400

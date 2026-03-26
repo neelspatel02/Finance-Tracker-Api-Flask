@@ -58,15 +58,15 @@ def get_transactions():
 @login_required
 def add_transactions():
     data = request.get_json()
-    result = transaction_service.add(db,data, current_user.id)
-    return jsonify(result), 201
+    result, status = transaction_service.add(db,data, current_user.id)
+    return jsonify(result), status
 
 
 @app.route("/api/transactions/<id>", methods=["DELETE"])
 @login_required
 def delete_transactions(id):
-    result = transaction_service.delete(db, id)
-    return jsonify(result), 200
+    result, status = transaction_service.delete(db, transaction_id=id)
+    return jsonify(result), status
 
 
 # ---- CATEGORIES ----
@@ -81,13 +81,15 @@ def get_categories():
 @login_required
 def add_categories():
     data = request.get_json()
-    return category_service.add(data)
+    result, status = category_service.add(data)
+    return jsonify(result), status
 
 
 @app.route("/api/categories/<id>", methods=["DELETE"])
 @login_required
 def delete_categories(id):
-    return category_service.delete(id)
+    result, status = category_service.delete(id)
+    return jsonify(result), status
 
 
 # ---- ANALYSIS -----
@@ -161,12 +163,12 @@ def register():
     email = data["email"]
     password_hash = generate_password_hash(data["password"])
 
-    result = db.add_user(username, email, password_hash)
-
-    if result:
+    try:
+        db.add_user(username, email, password_hash)
         return jsonify({"message": "User created"}), 201
-    else:
-        return jsonify({"message": "User or email already exist"}), 400
+    except ValueError as e:
+        return jsonify({"message": str(e)}), 400
+ 
     
 
 # LOGIN
@@ -195,5 +197,10 @@ def logout():
 @login_required
 def get_user():
     return jsonify({"username": current_user.username, "user_id": current_user.id})
+
+
+@app.errorhandler(Exception)
+def handle_exception(e):
+    return jsonify({"message": "Somthing went wrong"}), 500
 
 app.run(debug=True)
