@@ -57,7 +57,7 @@
         </div>
       </div>
       <div class="card">
-        <div class="section-header" style="flex-wrap:wrap;gap:0.5rem;"></div>
+        <div class="section-header">
           <div class="section-title">By Category</div>
           <!-- Toggle -->
           <div style="display:flex;gap:4px;">
@@ -122,14 +122,10 @@ function buildDonut(type) {
   const filtered = allCatData.filter(c => parseFloat(c[type]) > 0);
   if (catChart) { catChart.destroy(); catChart = null; }
 
-const canvas = document.getElementById('cat-chart');
-
   if (!filtered.length) {
-    canvas.style.display = 'none';
+    document.getElementById('cat-chart').style.display = 'none';
     return;
   }
-
-  canvas.style.display = 'block';
   document.getElementById('cat-chart').style.display = 'block';
 
   catChart = new Chart(document.getElementById('cat-chart'), {
