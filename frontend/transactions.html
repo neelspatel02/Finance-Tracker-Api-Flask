@@ -7,6 +7,12 @@
 <link rel="stylesheet" href="/frontend/style.css">
 </head>
 <body>
+<!-- Mobile hamburger -->
+<button class="mobile-menu-btn" id="hamburger" onclick="toggleSidebar()">
+  <svg width="18" height="18" viewBox="0 0 18 18" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M2 4h14M2 9h14M2 14h14"/></svg>
+</button>
+<div class="sidebar-overlay" id="sidebar-overlay" onclick="closeSidebar()"></div>
+
 <div class="app-layout">
   <div id="sidebar"></div>
   <main class="main-content">
