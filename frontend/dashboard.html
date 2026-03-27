@@ -8,6 +8,15 @@
 <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.0/chart.umd.min.js"></script>
 </head>
 <body>
+
+<!-- Mobile hamburger -->
+<button class="mobile-menu-btn" id="hamburger" onclick="toggleSidebar()">
+  <svg width="18" height="18" viewBox="0 0 18 18" fill="none" stroke="currentColor" stroke-width="1.8">
+    <path d="M2 4h14M2 9h14M2 14h14"/>
+  </svg>
+</button>
+<div class="sidebar-overlay" id="sidebar-overlay" onclick="closeSidebar()"></div>
+
 <div class="app-layout">
   <div id="sidebar"></div>
   <main class="main-content">
@@ -17,7 +26,7 @@
     </div>
 
     <!-- STAT CARDS -->
-    <div class="stats-grid" style="grid-template-columns:repeat(4,minmax(0,1fr))">
+    <div class="stats-grid">
       <div class="stat-card income">
         <div class="stat-label">This Month — Income</div>
         <div class="stat-value" id="stat-month-income">—</div>
@@ -37,7 +46,7 @@
     </div>
 
     <!-- CHARTS ROW -->
-    <div style="display:grid;grid-template-columns:1.6fr 1fr;gap:12px;margin-bottom:1.5rem;">
+    <div class="charts-row-2col" style="display:grid;grid-template-columns:1.6fr 1fr;gap:12px;margin-bottom:1.5rem;">
       <div class="card">
         <div class="section-header">
           <div class="section-title">Monthly Overview</div>
@@ -48,7 +57,7 @@
         </div>
       </div>
       <div class="card">
-        <div class="section-header">
+        <div class="section-header" style="flex-wrap:wrap;gap:0.5rem;"></div>
           <div class="section-title">By Category</div>
           <!-- Toggle -->
           <div style="display:flex;gap:4px;">
@@ -113,10 +122,14 @@ function buildDonut(type) {
   const filtered = allCatData.filter(c => parseFloat(c[type]) > 0);
   if (catChart) { catChart.destroy(); catChart = null; }
 
+const canvas = document.getElementById('cat-chart');
+
   if (!filtered.length) {
-    document.getElementById('cat-chart').style.display = 'none';
+    canvas.style.display = 'none';
     return;
   }
+
+  canvas.style.display = 'block';
   document.getElementById('cat-chart').style.display = 'block';
 
   catChart = new Chart(document.getElementById('cat-chart'), {
