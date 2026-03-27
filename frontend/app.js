@@ -44,17 +44,17 @@ function clearUser() {
 
 function requireAuth() {
   const user = getUser();
-  if (!user) { window.location.href = 'index.html'; return null; }
+  if (!user) { window.location.href = '/frontend/index.html'; return null; }
   return user;
 }
 
 function renderSidebar(activePage) {
   const user = getUser();
   const pages = [
-    { id: 'dashboard', label: 'Dashboard', href: 'dashboard.html', icon: `<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="1" y="1" width="6" height="6" rx="1"/><rect x="9" y="1" width="6" height="6" rx="1"/><rect x="1" y="9" width="6" height="6" rx="1"/><rect x="9" y="9" width="6" height="6" rx="1"/></svg>` },
-    { id: 'transactions', label: 'Transactions', href: 'transactions.html', icon: `<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M2 5h12M2 8h8M2 11h5"/></svg>` },
-    { id: 'categories', label: 'Categories', href: 'categories.html', icon: `<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="5" cy="5" r="3"/><circle cx="11" cy="11" r="3"/><path d="M8 2h6M2 8h3"/></svg>` },
-    { id: 'analysis', label: 'Analysis', href: 'analysis.html', icon: `<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M2 12l3-4 3 2 3-5 3 2"/></svg>` },
+    { id: 'dashboard', label: 'Dashboard', href: '/frontend/dashboard.html', icon: `<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="1" y="1" width="6" height="6" rx="1"/><rect x="9" y="1" width="6" height="6" rx="1"/><rect x="1" y="9" width="6" height="6" rx="1"/><rect x="9" y="9" width="6" height="6" rx="1"/></svg>` },
+    { id: 'transactions', label: 'Transactions', href: '/frontend/transactions.html', icon: `<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M2 5h12M2 8h8M2 11h5"/></svg>` },
+    { id: 'categories', label: 'Categories', href: '/frontend/categories.html', icon: `<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="5" cy="5" r="3"/><circle cx="11" cy="11" r="3"/><path d="M8 2h6M2 8h3"/></svg>` },
+    { id: 'analysis', label: 'Analysis', href: '/frontend/analysis.html', icon: `<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M2 12l3-4 3 2 3-5 3 2"/></svg>` },
   ];
 
   return `
@@ -91,5 +91,5 @@ async function handleLogout() {
     await apiFetch('/api/auth/logout', { method: 'POST' });
   } catch(e) {}
   clearUser();
-  window.location.href = 'index.html';
+  window.location.href = '/frontend/index.html';
 }

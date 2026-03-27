@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>PFT — Dashboard</title>
-<link rel="stylesheet" href="style.css">
+<link rel="stylesheet" href="/frontend/style.css">
 <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.0/chart.umd.min.js"></script>
 </head>
 <body>
@@ -84,7 +84,7 @@
   </main>
 </div>
 
-<script src="app.js"></script>
+<script src="/frontend/app.js"></script>
 <script>
 const user = requireAuth();
 document.getElementById('sidebar').innerHTML = renderSidebar('dashboard');
@@ -213,7 +213,7 @@ async function loadDashboard() {
       </tr>`;
     }).join('');
   } catch(e) {
-    if (e.status === 401) { clearUser(); window.location.href = 'index.html'; }
+    if (e.status === 401) { clearUser(); window.location.href = '/frontend/index.html'; }
   }
 }
 

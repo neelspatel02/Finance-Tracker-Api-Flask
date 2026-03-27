@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>PFT — Login</title>
-<link rel="stylesheet" href="style.css">
+<link rel="stylesheet" href="/frontend/style.css">
 </head>
 <body>
 <div class="auth-page">
@@ -58,9 +58,9 @@
   </div>
 </div>
 
-<script src="app.js"></script>
+<script src="/frontend/app.js"></script>
 <script>
-  if (getUser()) window.location.href = 'dashboard.html';
+  if (getUser()) window.location.href = '/frontend/dashboard.html';
 
   function switchTab(tab) {
     document.querySelectorAll('.auth-tab').forEach((t, i) => {
@@ -82,7 +82,7 @@
         body: JSON.stringify({ username, password })
       });
       setUser({ username });
-      window.location.href = 'dashboard.html';
+      window.location.href = '/frontend/dashboard.html';
     } catch(e) {
       err.textContent = e.message || 'login failed';
     }
