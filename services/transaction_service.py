@@ -12,8 +12,8 @@ SORT_OPTIONS = {"date": "t.t_date",
 def format_transaction(row):
     return {
         "id": row["t_id"],
-        "date": row["date"],
-        "time": row["time"],
+        "date": str(row["date"]),
+        "time": str(row["time"]),
         "amount": paise_to_rupees(row["amount_in_paise"]),
         "type": row["t_type"],
         "category": row["category"],
