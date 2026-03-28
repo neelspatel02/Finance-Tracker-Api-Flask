@@ -10,16 +10,15 @@ load_dotenv()
 
 app = Flask(__name__)
 
-
 app.secret_key = os.getenv("SECRET_KEY")
-DB_PATH = os.getenv("DB_PATH", "")
+DB_PATH = os.getenv("DB_PATH")
 
 CORS(app, supports_credentials=True)
 
 login_manager = LoginManager()
 login_manager.init_app(app)
 
-# ---- DATABASE ----
+# ====================== DATABASE ======================
 
 DATABASE_URL = os.getenv("DATABASE_URL")
 
@@ -44,7 +43,7 @@ def root():
     return send_from_directory("frontend", "index.html")
 
 
-# ---- TRANSACTIONS ----
+# ====================== TRANSACTIONS ======================
 
 @app.route("/api/transactions", methods=["GET"])
 @login_required
@@ -77,7 +76,7 @@ def delete_transactions(id):
     return jsonify(result), status
 
 
-# ---- CATEGORIES ----
+# ====================== CATEGORIES ======================
 
 @app.route("/api/categories", methods=["GET"])
 @login_required
@@ -100,7 +99,7 @@ def delete_categories(id):
     return jsonify(result), status
 
 
-# ---- ANALYSIS -----
+# ====================== ANALYSIS ======================
 
 @app.route("/api/analysis")
 @login_required
@@ -142,7 +141,7 @@ def get_category_report():
     return jsonify(analysis_service.get_by_categories(db, current_user.id, start_date, end_date)), 200
 
 
-#  ---- USER LOGIN -----
+# ====================== USER AUTH ======================
 
 class User(UserMixin):
     def __init__(self, user_id, username):
@@ -163,7 +162,6 @@ def unauthorized():
 
 
 #  REFISTER
-
 @app.route("/api/auth/register", methods=["POST"])
 def register():
     data = request.get_json()
@@ -177,10 +175,8 @@ def register():
     except ValueError as e:
         return jsonify({"message": str(e)}), 400
  
-    
 
 # LOGIN
-
 @app.route("/api/auth/login", methods=["POST"])
 def login():
     data = request.get_json()
@@ -200,7 +196,7 @@ def logout():
     logout_user()
     return jsonify({"message": "Logged out"}), 200
 
-
+# CURRENT USER
 @app.route("/api/auth/me", methods=["GET"])
 @login_required
 def get_user():
@@ -210,6 +206,7 @@ def get_user():
 @app.errorhandler(Exception)
 def handle_exception(e):
     return jsonify({"message": "Somthing went wrong"}), 500
+
 
 if __name__ == "__main__":
     app.run(debug=True)

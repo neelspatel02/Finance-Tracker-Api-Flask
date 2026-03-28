@@ -19,6 +19,7 @@ def format_transaction(row):
         "category": row["category"],
         "description": row["description"]
     }
+# ---------------------------------------------------------------------
 
 
 def get_paginated(db, page, limit, sort_by, sort_order, user_id, filters):
@@ -33,11 +34,6 @@ def get_paginated(db, page, limit, sort_by, sort_order, user_id, filters):
     return {"transactions": [format_transaction(row) for row in rows],
             "page": page,
             "total_pages": total_pages}
-
-
-# def get_all(db, user_id):
-#     rows = db.get_transactions(user_id)
-#     return [format_transaction(row) for row in rows]
 
 
 def add(db, data, user_id):
